@@ -1,25 +1,37 @@
+import { lazy, Suspense, type FC } from 'react';
 import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 import { AdminLayout } from '@/layouts/AdminLayout';
 import { PublicLayout } from '@/layouts/PublicLayout';
 import { RequireAdmin } from '@/routes/RequireAdmin';
 import { AdminLogin } from '@/pages/admin/AdminLogin';
-import { Dashboard } from '@/pages/admin/Dashboard';
-import { Planned } from '@/pages/Planned';
 import { NotFound } from '@/pages/NotFound';
+import { Spinner } from '@/components/ui';
+
+// Route-level code splitting: public visitors never download admin code.
+function page<K extends string>(loader: () => Promise<Record<K, FC>>, name: K) {
+  // eslint-disable-next-line react-refresh/only-export-components -- route table, not a hot-reloaded module
+  const C = lazy(async () => ({ default: (await loader())[name] as FC }));
+  return (
+    <Suspense fallback={<div className="flex justify-center py-16"><Spinner /></div>}>
+      <C />
+    </Suspense>
+  );
+}
 
 export const routes = [
   { path: '/', element: <Navigate to="/events" replace /> },
   {
     element: <PublicLayout />,
     children: [
-      { path: '/register', element: <Planned title="Register" phase={3} /> },
-      { path: '/register/fighter', element: <Planned title="Fighter registration" phase={3} /> },
-      { path: '/register/coach', element: <Planned title="Coach registration" phase={3} /> },
-      { path: '/register/success', element: <Planned title="Registration received" phase={3} /> },
-      { path: '/offers/:offerToken', element: <Planned title="Bout offer" phase={6} /> },
-      { path: '/events', element: <Planned title="Events" phase={7} /> },
-      { path: '/events/:eventSlug', element: <Planned title="Event" phase={7} /> },
-      { path: '/events/:eventSlug/fight-card', element: <Planned title="Fight card" phase={7} /> },
+      { path: '/register', element: page(() => import('@/pages/register/RegisterLanding'), 'RegisterLanding') },
+      { path: '/register/fighter', element: page(() => import('@/pages/register/FighterRegistration'), 'FighterRegistration') },
+      { path: '/register/coach', element: page(() => import('@/pages/register/CoachRegistration'), 'CoachRegistration') },
+      { path: '/register/success', element: page(() => import('@/pages/register/RegisterSuccess'), 'RegisterSuccess') },
+      { path: '/offers/:offerToken', element: page(() => import('@/pages/public/OfferPage'), 'OfferPage') },
+      { path: '/events', element: page(() => import('@/pages/public/EventsList'), 'EventsList') },
+      { path: '/events/:eventSlug', element: page(() => import('@/pages/public/EventPage'), 'EventPage') },
+      { path: '/events/:eventSlug/fight-card', element: page(() => import('@/pages/public/FightCardPage'), 'FightCardPage') },
+      { path: '/coach', element: page(() => import('@/pages/coach/CoachPortal'), 'CoachPortal') },
     ],
   },
   { path: '/admin/login', element: <AdminLogin /> },
@@ -35,17 +47,20 @@ export const routes = [
         element: <AdminLayout />,
         children: [
           { index: true, element: <Navigate to="dashboard" replace /> },
-          { path: 'dashboard', element: <Dashboard /> },
-          { path: 'fighters', element: <Planned title="Fighters" phase={3} /> },
-          { path: 'coaches', element: <Planned title="Coaches" phase={3} /> },
-          { path: 'gyms', element: <Planned title="Gyms" phase={3} /> },
-          { path: 'events', element: <Planned title="Events" phase={4} /> },
-          { path: 'matchmaking', element: <Planned title="Matchmaking" phase={5} /> },
-          { path: 'bouts', element: <Planned title="Bouts" phase={6} /> },
-          { path: 'fight-cards', element: <Planned title="Fight cards" phase={7} /> },
-          { path: 'emails', element: <Planned title="Emails" phase={6} /> },
-          { path: 'audit-logs', element: <Planned title="Audit log" phase={7} /> },
-          { path: 'settings', element: <Planned title="Settings" phase={7} /> },
+          { path: 'dashboard', element: page(() => import('@/pages/admin/Dashboard'), 'Dashboard') },
+          { path: 'fighters', element: page(() => import('@/pages/admin/FightersAdmin'), 'FightersAdmin') },
+          { path: 'fighters/:fighterId', element: page(() => import('@/pages/admin/FighterDetail'), 'FighterDetail') },
+          { path: 'coaches', element: page(() => import('@/pages/admin/CoachesAdmin'), 'CoachesAdmin') },
+          { path: 'gyms', element: page(() => import('@/pages/admin/GymsAdmin'), 'GymsAdmin') },
+          { path: 'events', element: page(() => import('@/pages/admin/EventsAdmin'), 'EventsAdmin') },
+          { path: 'events/:eventId', element: page(() => import('@/pages/admin/EventDetail'), 'EventDetail') },
+          { path: 'matchmaking', element: page(() => import('@/pages/admin/Matchmaking'), 'Matchmaking') },
+          { path: 'bouts', element: page(() => import('@/pages/admin/Bouts'), 'Bouts') },
+          { path: 'fight-cards', element: page(() => import('@/pages/admin/FightCards'), 'FightCards') },
+          { path: 'emails', element: page(() => import('@/pages/admin/Emails'), 'Emails') },
+          { path: 'audit-logs', element: page(() => import('@/pages/admin/AuditLogs'), 'AuditLogs') },
+          { path: 'settings', element: page(() => import('@/pages/admin/Settings'), 'Settings') },
+          { path: 'account', element: page(() => import('@/pages/admin/Account'), 'Account') },
         ],
       },
     ],

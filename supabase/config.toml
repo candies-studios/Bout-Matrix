@@ -33,3 +33,45 @@ enable_confirmations = true
 [storage]
 enabled = true
 file_size_limit = "10MiB"
+
+# Edge Functions verify the caller themselves (public forms are anonymous; admin functions check the
+# user JWT with Supabase Auth and permissions in the database), so gateway JWT checks are disabled.
+[functions.register-fighter]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.register-coach]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.registration-upload-url]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.offer-view]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.offer-respond]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.email-dispatch]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.email-webhook]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.matchmaking-generate]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.bout-create]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.bout-issue-offers]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.invite-coach]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.invite-staff]
+verify_jwt = false
+import_map = "./functions/deno.json"
+[functions.fighter-profile-approval]
+verify_jwt = false
+import_map = "./functions/deno.json"

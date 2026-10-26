@@ -31,7 +31,10 @@ export function PublicLayout() {
         <Outlet />
       </main>
       <footer className="border-t border-ink-700 py-6 text-center text-xs text-ink-400">
-        Fight cards show confirmed, published bouts only.
+        Fight cards show confirmed, published bouts only. ·{' '}
+        <Link to="/coach" className="underline-offset-2 hover:underline">
+          Coach portal
+        </Link>
       </footer>
     </div>
   );

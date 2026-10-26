@@ -65,9 +65,14 @@ export function AdminLayout() {
           <p className="truncate text-ink-400" title={session?.user.email}>
             {session?.user.email}
           </p>
-          <button className="mt-2 text-ink-300 underline-offset-2 hover:underline" onClick={() => void signOut()}>
-            Sign out
-          </button>
+          <div className="mt-2 flex gap-4">
+            <NavLink to="/admin/account" className="text-ink-300 underline-offset-2 hover:underline">
+              Account
+            </NavLink>
+            <button className="text-ink-300 underline-offset-2 hover:underline" onClick={() => void signOut()}>
+              Sign out
+            </button>
+          </div>
         </div>
       </aside>
       <main id="main" className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-8 sm:py-8">

@@ -102,7 +102,10 @@ describe('public fight card', () => {
 
   it('hides draft events entirely', async () => {
     await tx(async (c) => {
-      await createEvent(c, 'secret-draft', { is_public: true });
+      const ev = await createEvent(c, 'secret-draft');
+      expect((await attempt(c, `update public.events set is_public = true where id = $1`, [ev.id]))?.message).toMatch(
+        /draft events cannot be public/,
+      );
       await actAs(c, 'anon');
       const { rows } = await c.query(`select * from public.public_get_event('secret-draft')`);
       expect(rows).toHaveLength(0);

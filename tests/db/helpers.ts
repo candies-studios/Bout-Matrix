@@ -91,13 +91,7 @@ export async function createEvent(c: Db, slug = `evt-${randomUUID().slice(0, 8)}
     `insert into public.events (${cols.join(',')}) values (${cols.map((_, i) => `$${i + 1}`).join(',')}) returning *`,
     vals,
   );
-  // copy org weight-class templates
-  await c.query(
-    `insert into public.weight_classes (org_id, event_id, name, division, min_g, max_g, allowed_diff_g, sort_order)
-     select org_id, $1, name, division, min_g, max_g, allowed_diff_g, sort_order
-       from public.weight_classes where event_id is null and org_id = $2`,
-    [rows[0].id, ORG],
-  );
+  // weight classes and rules are copied from org templates by a trigger
   return rows[0] as { id: string; slug: string; event_code: string };
 }
 

@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/* Design tokens — dark charcoal surfaces, neutral type, restrained red accent. */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Barlow Condensed', 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink-950: #0b0b0c;   /* page background */
+  --color-ink-900: #121214;   /* panels */
+  --color-ink-850: #18181b;
+  --color-ink-800: #1f1f23;   /* raised surfaces, inputs */
+  --color-ink-700: #2b2b31;   /* borders */
+  --color-ink-600: #3a3a42;
+  --color-ink-400: #8a8a96;   /* muted text */
+  --color-ink-300: #b4b4bd;
+  --color-ink-100: #ececf0;   /* primary text */
+
+  --color-accent-700: #991b1b;
+  --color-accent-600: #b91c1c;
+  --color-accent-500: #dc2626;  /* the one red */
+  --color-accent-400: #f05252;
+
+  --color-ok: #22c55e;
+  --color-warn: #f59e0b;
+  --color-info: #60a5fa;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ink-950 text-ink-100 font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  h1, h2, h3 {
+    @apply font-display tracking-wide;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+}

@@ -1,0 +1,35 @@
+# Supabase CLI configuration (local development). Hosted projects: mirror the [auth] settings
+# in Dashboard → Authentication.
+project_id = "fight-desk"
+
+[api]
+enabled = true
+port = 54321
+# Only `public` is exposed. Helpers live in `private`, which PostgREST cannot reach.
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/admin/login"]
+jwt_expiry = 3600
+# Nobody can self-register. Admins and coaches are invited.
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = true
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"

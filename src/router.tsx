@@ -68,4 +68,6 @@ export const routes = [
   { path: '*', element: <NotFound /> },
 ];
 
-export const router = createBrowserRouter(routes);
+// BASE_URL is '/' normally and '/Bout-Matrix/' on GitHub Pages.
+export const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+export const router = createBrowserRouter(routes, { basename });

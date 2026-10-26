@@ -13,7 +13,9 @@ export const supabase: SupabaseClient = env.ok
     })
   : (null as unknown as SupabaseClient);
 
-export const siteUrl = (env.ok && env.env.VITE_SITE_URL) || (typeof window !== 'undefined' ? window.location.origin : '');
+/** Public address of the app, including any sub-path (e.g. https://user.github.io/Bout-Matrix). */
+export const siteUrl = ((env.ok && env.env.VITE_SITE_URL) ||
+  (typeof window !== 'undefined' ? window.location.origin + import.meta.env.BASE_URL : '')).replace(/\/$/, '');
 
 /** Turn a PostgREST/Postgres error into a message safe to show to users. */
 export function friendlyError(e: unknown): string {

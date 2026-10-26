@@ -47,9 +47,9 @@ export function EventDetail() {
             }
             actions={
               e.is_public && (
-                <a className="text-sm font-semibold text-accent-400 hover:underline" href={`/events/${e.slug}`} target="_blank" rel="noreferrer">
+                <Link className="text-sm font-semibold text-accent-400 hover:underline" to={`/events/${e.slug}`} target="_blank" rel="noreferrer">
                   View public page ↗
-                </a>
+                </Link>
               )
             }
           />

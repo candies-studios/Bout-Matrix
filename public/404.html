@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting…</title>
+    <script>
+      // GitHub Pages has no SPA rewrites. Send unknown paths back to the app with the original
+      // path in ?p=, and index.html restores it before the router starts.
+      (function () {
+        var base = '/' + (location.pathname.split('/')[1] || '') + '/';
+        if (location.hostname.indexOf('github.io') === -1) base = '/';
+        var rest = location.pathname.slice(base.length) + location.search + location.hash;
+        location.replace(base + '?p=' + encodeURIComponent(rest));
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

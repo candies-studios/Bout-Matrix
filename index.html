@@ -17,6 +17,13 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Restore a deep link forwarded by 404.html (GitHub Pages).
+      (function () {
+        var p = new URLSearchParams(location.search).get('p');
+        if (p !== null) history.replaceState(null, '', location.pathname.replace(/\/?$/, '/') + p.replace(/^\//, ''));
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

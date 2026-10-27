@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { CLASSIFICATION_LABELS, type Classification, type Evaluation } from '@domain/matchmaking.ts';
 import { supabase, friendlyError } from '@/lib/supabase';
 import { formatDateTime, formatWeight, humanize } from '@/lib/format';
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Textarea, type Tone } from '@/components/ui';
-import { Modal, Table } from '@/components/more';
+import { Modal } from '@/components/more';
 import { EventPicker } from '@/components/EventPicker';
 import { useSelectedEvent } from '@/hooks/useSelectedEvent';
 import { Loading } from '@/components/Loading';
@@ -197,10 +197,6 @@ export function Matchmaking() {
     }
     return [...m.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
   })();
-  // Ready fighters with no suggestion; the weight-class filter applies to them too.
-  const selectedClass = (roster.data?.classes ?? []).find((w) => w.id === wcFilter);
-  const unmatched = (q.data?.unmatched ?? []).filter((u) =>
-    !selectedClass || (u.weight_g != null && u.weight_g <= selectedClass.max_g && (selectedClass.min_g == null || u.weight_g > selectedClass.min_g)));
   const activeFighter = fighterOptions.some(([id]) => id === fighterFilter) ? fighterFilter : '';
   const rows = inClass.filter((s) => !activeFighter || s.fighter_a_id === activeFighter || s.fighter_b_id === activeFighter);
   const st = q.data?.stats;
@@ -249,30 +245,6 @@ export function Matchmaking() {
                   {rows.length} suggestion{rows.length === 1 ? '' : 's'} · updated {formatDateTime(q.data.refreshed_at)}
                 </span>
               </div>
-              {unmatched.length > 0 && (
-                <details className="rounded-lg border border-amber-700/60 bg-ink-900 p-4">
-                  <summary className="cursor-pointer font-semibold">
-                    Unmatched fighters ({unmatched.length}) <span className="font-normal text-ink-400">— ready, but no safe opponent right now. Click to see why.</span>
-                  </summary>
-                  <p className="my-3 text-sm text-ink-400">
-                    They are matched automatically as soon as a suitable opponent is approved. To pair them sooner, widen this event&apos;s matchmaking rules (weight or experience gap) under Events, or arrange their bout separately.
-                  </p>
-                  <Table caption="Unmatched fighters">
-                    <thead><tr><th>Fighter</th><th>Division</th><th>Weight</th><th>Why no match</th><th>Closest opponent</th></tr></thead>
-                    <tbody>
-                      {unmatched.map((u) => (
-                        <tr key={u.fighter_id}>
-                          <td><Link to={`/admin/fighters/${u.fighter_id}`} className="font-semibold hover:underline">{u.fight_name}</Link><br /><span className="text-xs text-ink-400">{u.fighter_code}</span></td>
-                          <td>{humanize(u.division)}</td>
-                          <td>{u.weight_g != null ? formatWeight(u.weight_g) : '—'}</td>
-                          <td>{u.reason}</td>
-                          <td>{u.closest_opponent ? <>{u.closest_opponent.fight_name}{u.closest_opponent.weight_g != null && <span className="text-ink-400"> · {formatWeight(u.closest_opponent.weight_g)}</span>}</> : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </Table>
-                </details>
-              )}
               {rows.length === 0 ? (
                 <EmptyState title="No suggested bouts yet">
                   {st.ready < 2

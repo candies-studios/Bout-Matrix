@@ -1,13 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
-  COMPETITION_LEVELS, DIVISIONS, FighterRegistrationSchema, SKILL_LEVELS, fieldErrors,
+  COMPETITION_LEVELS, DIVISIONS, FIGHTING_STYLES, FighterRegistrationSchema, fieldErrors,
 } from '@domain/schemas.ts';
-import { toGrams } from '@domain/weights.ts';
 import { ApiError, callFunction, uploadRegistrationFile } from '@/lib/api';
 import { formatDateTime, humanize, venueText } from '@/lib/format';
 import { Alert, Button, Card, Field, Input, Select, Textarea } from '@/components/ui';
 import { Checkbox } from '@/components/more';
+import { AttachFile } from '@/components/AttachFile';
 import { Loading } from '@/components/Loading';
 import { Turnstile } from '@/components/Turnstile';
 import { usePublicGyms, useRegistrationEvent } from './useRegistrationEvent';
@@ -157,8 +157,7 @@ export function FighterRegistration() {
 
               <Fieldset legend="About you">
                 {input('legal_name', 'Full legal name', { required: true, autoComplete: 'name' })}
-                {input('fight_name', 'Public fight name', { required: true, hint: 'Shown on fight cards' })}
-                {input('nickname', 'Nickname')}
+                {input('fight_name', 'Nickname', { required: true, hint: 'The name shown on fight cards' })}
                 {input('date_of_birth', 'Date of birth', { required: true, type: 'date', autoComplete: 'bday' })}
                 {input('email', 'Email', { required: true, type: 'email', autoComplete: 'email', inputMode: 'email' })}
                 <div className="grid grid-cols-[6rem_1fr] gap-2">
@@ -194,17 +193,7 @@ export function FighterRegistration() {
                     </Select>
                   )}
                 </Field>
-                <div className="grid grid-cols-[1fr_6rem] gap-2">
-                  {input('weight_value', 'Current weight', { required: true, type: 'number', inputMode: 'decimal' })}
-                  <Field label="Unit">
-                    {({ id }) => (
-                      <Select id={id} value={f.weight_unit} onChange={set('weight_unit')}>
-                        <option value="kg">kg</option>
-                        <option value="lb">lb</option>
-                      </Select>
-                    )}
-                  </Field>
-                </div>
+                {input('weight_value', 'Current weight (kg)', { required: true, type: 'number', inputMode: 'decimal', hint: 'In kilograms, e.g. 70.5' })}
                 {classes.length > 0 && (
                   <Field label="Preferred weight class" error={errors.preferred_weight_class_id} hint="Organisers make the final decision.">
                     {({ id, describedBy }) => (
@@ -220,21 +209,15 @@ export function FighterRegistration() {
                     )}
                   </Field>
                 )}
-                {f.weight_value && Number(f.weight_value) > 0 && (
-                  <p className="self-end text-sm text-ink-400" aria-live="polite">
-                    ≈ {(toGrams(Number(f.weight_value), f.weight_unit as 'kg' | 'lb') / 1000).toFixed(1)} kg
-                  </p>
-                )}
                 {input('height_cm', 'Height (cm)', { type: 'number', inputMode: 'decimal' })}
-                {input('reach_cm', 'Reach (cm)', { type: 'number', inputMode: 'decimal' })}
-                {input('primary_style', 'Primary fighting style', { hint: 'e.g. Wrestling, Muay Thai, BJJ' })}
-                <Field label="Skill level">
-                  {({ id }) => (
-                    <Select id={id} value={f.skill_level ?? ''} onChange={set('skill_level')}>
-                      <option value="">Prefer not to say</option>
-                      {SKILL_LEVELS.map((s) => (
-                        <option key={s} value={s}>
-                          {humanize(s)}
+                {input('reach_cm', 'Reach (cm)', { type: 'number', inputMode: 'decimal', hint: 'Fingertip-to-fingertip distance' })}
+                <Field label="Primary fighting style" error={errors.primary_style}>
+                  {({ id, describedBy, invalid }) => (
+                    <Select id={id} value={f.primary_style ?? ''} onChange={set('primary_style')} aria-describedby={describedBy} aria-invalid={invalid}>
+                      <option value="">Choose…</option>
+                      {FIGHTING_STYLES.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
                         </option>
                       ))}
                     </Select>
@@ -253,7 +236,7 @@ export function FighterRegistration() {
                 {input('submission_wins', 'Wins by submission', { type: 'number', inputMode: 'numeric' })}
                 {input('decision_wins', 'Wins by decision', { type: 'number', inputMode: 'numeric' })}
                 <div className="sm:col-span-2">
-                  <Field label="Previous competition experience" error={errors.previous_experience}>
+                  <Field label="Previous competition experience & winning titles (if any)" error={errors.previous_experience}>
                     {({ id }) => <Textarea id={id} value={f.previous_experience ?? ''} onChange={set('previous_experience')} maxLength={2000} />}
                   </Field>
                 </div>
@@ -286,13 +269,13 @@ export function FighterRegistration() {
                 {input('availability_notes', 'Availability notes')}
                 <Field label="Profile photo" hint="JPG, PNG or WEBP up to 5 MB. Only shown publicly after approval." error={errors.photo}>
                   {({ id, describedBy, invalid }) => (
-                    <Input id={id} type="file" accept="image/jpeg,image/png,image/webp" aria-describedby={describedBy} aria-invalid={invalid} onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
+                    <AttachFile id={id} accept="image/jpeg,image/png,image/webp" file={photo} onChange={setPhoto} describedBy={describedBy} invalid={invalid} preview />
                   )}
                 </Field>
                 {(event?.required_documents ?? []).map((k) => (
                   <Field key={k} label={humanize(k)} required hint="JPG, PNG, WEBP or PDF up to 10 MB" error={errors[`doc_${k}`]}>
                     {({ id, describedBy, invalid }) => (
-                      <Input id={id} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" aria-describedby={describedBy} aria-invalid={invalid} onChange={(e) => setDocs((d) => ({ ...d, [k]: e.target.files?.[0] ?? null }))} />
+                      <AttachFile id={id} accept="image/jpeg,image/png,image/webp,application/pdf" file={docs[k] ?? null} onChange={(file) => setDocs((d) => ({ ...d, [k]: file }))} describedBy={describedBy} invalid={invalid} />
                     )}
                   </Field>
                 ))}
@@ -303,7 +286,7 @@ export function FighterRegistration() {
                   id="consent_data"
                   checked={consentData}
                   onChange={setConsentData}
-                  label={<>I agree that my details are stored and used to organise events and matchmaking. Only my fight name, approved photo and verified record are ever shown publicly. <span className="text-accent-400">*</span></>}
+                  label={<>I agree that my details are stored and used to organise events and matchmaking. Only my nickname, approved photo and verified record are ever shown publicly. <span className="text-accent-400">*</span></>}
                 />
                 {errors.consent_data && <p className="text-sm text-accent-400">{errors.consent_data}</p>}
                 <Checkbox

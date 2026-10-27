@@ -5,6 +5,17 @@ export const CONSENT_VERSION = 'v1';
 export const DIVISIONS = ['men', 'women'] as const;
 export const COMPETITION_LEVELS = ['amateur', 'semi_pro', 'professional'] as const;
 export const SKILL_LEVELS = ['novice', 'intermediate', 'advanced', 'elite'] as const;
+/** Options for "Primary fighting style" on the fighter form. */
+export const FIGHTING_STYLES = [
+  'Boxing',
+  'Muay Thai (Thai Boxing)',
+  'Brazilian Jiu-Jitsu (BJJ)',
+  'Kickboxing',
+  'Wrestling',
+  'Taekwondo',
+  'Karate',
+  'Judo',
+] as const;
 
 const trimmed = (min: number, max: number, label: string) =>
   z.string().trim().min(min, `${label} is required.`).max(max, `${label} must be at most ${max} characters.`);
@@ -49,8 +60,8 @@ export const FighterRegistrationSchema = z
       .optional()
       .or(z.literal('').transform(() => undefined)),
     legal_name: trimmed(2, 120, 'Full legal name'),
-    fight_name: trimmed(2, 80, 'Fight name'),
-    nickname: optionalText(60),
+    // Single public name shown on fight cards (labelled "Nickname" on the form).
+    fight_name: trimmed(2, 80, 'Nickname'),
     date_of_birth: z.iso.date('Enter a valid date of birth.').refine((d) => {
       const a = ageOnDate(d);
       return a >= 14 && a <= 70;
@@ -73,10 +84,9 @@ export const FighterRegistrationSchema = z
     ko_tko_wins: optionalCount('KO/TKO wins'),
     submission_wins: optionalCount('Submission wins'),
     decision_wins: optionalCount('Decision wins'),
-    primary_style: optionalText(60),
-    skill_level: z.enum(SKILL_LEVELS).optional().or(z.literal('').transform(() => undefined)),
-    weight_value: z.coerce.number({ error: 'Enter your current weight.' }).positive('Enter your current weight.'),
-    weight_unit: z.enum(['kg', 'lb']),
+    primary_style: z.enum(FIGHTING_STYLES, { error: 'Choose a style from the list.' }).optional().or(z.literal('').transform(() => undefined)),
+    weight_value: z.coerce.number({ error: 'Enter your current weight in kg.' }).positive('Enter your current weight in kg.'),
+    weight_unit: z.literal('kg').default('kg'),
     preferred_weight_class_id: z.uuid().optional().or(z.literal('').transform(() => undefined)),
     height_cm: optionalNumber(120, 230, 'Height'),
     reach_cm: optionalNumber(110, 250, 'Reach'),
@@ -94,8 +104,7 @@ export const FighterRegistrationSchema = z
     website: z.string().max(0).optional(), // honeypot: must stay empty
   })
   .superRefine((v, ctx) => {
-    const kg = v.weight_unit === 'kg' ? v.weight_value : v.weight_value * 0.45359237;
-    if (kg < 35 || kg > 180) ctx.addIssue({ code: 'custom', path: ['weight_value'], message: 'Weight must be between 35 and 180 kg (77–397 lb).' });
+    if (v.weight_value < 35 || v.weight_value > 180) ctx.addIssue({ code: 'custom', path: ['weight_value'], message: 'Weight must be between 35 and 180 kg.' });
     const methods = (v.ko_tko_wins ?? 0) + (v.submission_wins ?? 0) + (v.decision_wins ?? 0);
     if (methods > v.wins) ctx.addIssue({ code: 'custom', path: ['ko_tko_wins'], message: 'KO, submission and decision wins cannot exceed total wins.' });
     if (!v.gym_id && !v.gym_name) ctx.addIssue({ code: 'custom', path: ['gym_name'], message: 'Enter your gym or academy (or "Independent").' });

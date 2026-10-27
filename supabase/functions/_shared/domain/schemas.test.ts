@@ -44,8 +44,16 @@ describe('fighter registration schema', () => {
     expect(r.success).toBe(false);
     expect(Object.keys(fieldErrors(r.error!))).toContain(field);
   });
-  it('accepts pounds within range', () => {
-    expect(FighterRegistrationSchema.safeParse({ ...valid, weight_value: '125', weight_unit: 'lb' }).success).toBe(true);
+  it('accepts kilograms only', () => {
+    expect(FighterRegistrationSchema.parse({ ...valid, weight_unit: undefined }).weight_unit).toBe('kg');
+    expect(FighterRegistrationSchema.safeParse({ ...valid, weight_value: '125', weight_unit: 'lb' }).success).toBe(false);
+    expect(FighterRegistrationSchema.safeParse({ ...valid, weight_value: '30' }).success).toBe(false);
+  });
+  it('requires the nickname and limits fighting style to the list', () => {
+    expect(Object.keys(fieldErrors(FighterRegistrationSchema.safeParse({ ...valid, fight_name: '' }).error!))).toContain('fight_name');
+    expect(FighterRegistrationSchema.safeParse({ ...valid, primary_style: 'Muay Thai (Thai Boxing)' }).success).toBe(true);
+    expect(FighterRegistrationSchema.safeParse({ ...valid, primary_style: '' }).success).toBe(true);
+    expect(FighterRegistrationSchema.safeParse({ ...valid, primary_style: 'Capoeira' }).success).toBe(false);
   });
   it('rejects document paths outside the pending upload area', () => {
     const r = FighterRegistrationSchema.safeParse({ ...valid, documents: [{ kind: 'id_card', path: '../../etc/passwd', mime_type: 'application/pdf', size_bytes: 10 }] });

@@ -37,9 +37,10 @@ serve(async (req) => {
         let actionUrl: string | undefined;
         if (OFFER_LINK_TEMPLATES.has(row.template)) {
           const { data: m } = await db.rpc('svc_offer_token_material', { p_offer: row.payload.offer_id });
-          const mat = m as { offer_id: string; nonce: string; status: string } | null;
+          const mat = m as { offer_id: string; nonce: string; status: string; token?: string } | null;
           if (!mat || mat.status !== 'pending') throw Object.assign(new Error('Offer is no longer open; email not sent'), { permanent: true });
-          actionUrl = `${siteUrl}/offers/${await deriveOfferToken(env('OFFER_TOKEN_SECRET'), mat.offer_id, mat.nonce)}`;
+          // Token is derived in the database (migration 0010); the env secret is only a fallback for older databases.
+          actionUrl = `${siteUrl}/offers/${mat.token ?? (await deriveOfferToken(env('OFFER_TOKEN_SECRET'), mat.offer_id, mat.nonce))}`;
         }
         const msg = renderEmail(row.template, row.payload, { siteUrl, orgName, actionUrl });
         const res = await fetch('https://api.resend.com/emails', {

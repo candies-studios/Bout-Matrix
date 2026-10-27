@@ -2,19 +2,17 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CLASSIFICATION_LABELS, type Classification, type Evaluation } from '@domain/matchmaking.ts';
 import { supabase, friendlyError } from '@/lib/supabase';
-import { callFunction } from '@/lib/api';
-import { must, useAsync } from '@/hooks/useAsync';
 import { formatDateTime, formatWeight } from '@/lib/format';
-import { Alert, Badge, Button, EmptyState, Field, Input, PageHeader, Select, Textarea, type Tone } from '@/components/ui';
+import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Textarea, type Tone } from '@/components/ui';
 import { Modal } from '@/components/more';
 import { EventPicker } from '@/components/EventPicker';
 import { useSelectedEvent } from '@/hooks/useSelectedEvent';
 import { Loading } from '@/components/Loading';
 import { useEventRoster, type WC } from '@/hooks/useEventRoster';
+import { useMatchSuggestions, type MatchSuggestion } from '@/hooks/useMatchSuggestions';
 
 const TONE: Record<Classification, Tone> = { strong_candidate: 'ok', possible_candidate: 'info', requires_review: 'warn', ineligible: 'danger' };
 
-interface Suggestion { id: string; fighter_a_id: string; fighter_b_id: string; score: number | null; classification: Classification; evaluation: Evaluation; generated_at: string }
 
 export function ClassificationBadge({ c }: { c: Classification }) {
   return <Badge tone={TONE[c]}>{CLASSIFICATION_LABELS[c]}</Badge>;
@@ -74,14 +72,18 @@ export function CreateBoutModal({
     setBusy(true);
     setErr(null);
     try {
-      const r = await callFunction<{ bout: { id: string } }>('bout-create', {
-        event_id: eventId, fighter_a_id: pair[0], fighter_b_id: pair[1],
-        weight_class_id: wc || evaluation?.proposed_weight_class?.id || null,
-        rounds: rounds ? Number(rounds) : undefined, round_minutes: minutes ? Number(minutes) : undefined,
-        contracted_weight_g: contract ? Math.round(Number(contract) * 1000) : null,
-        override_reason: override || undefined, suggestion_id: suggestionId ?? null, replaces_bout_id: replacesBoutId ?? null, admin_notes: notes || undefined,
+      // Evaluated again on the server; the browser never supplies the evaluation.
+      const { data, error } = await supabase.rpc('create_bout', {
+        p: {
+          event_id: eventId, fighter_a_id: pair[0], fighter_b_id: pair[1],
+          weight_class_id: wc || null,
+          rounds: rounds ? Number(rounds) : undefined, round_minutes: minutes ? Number(minutes) : undefined,
+          contracted_weight_g: contract ? Math.round(Number(contract) * 1000) : null,
+          override_reason: override || undefined, suggestion_id: suggestionId ?? null, replaces_bout_id: replacesBoutId ?? null, admin_notes: notes || undefined,
+        },
       });
-      navigate(`/admin/bouts?event=${eventId}&bout=${r.bout.id}`);
+      if (error) throw new Error(friendlyError(error));
+      navigate(`/admin/bouts?event=${eventId}&bout=${(data as { id: string }).id}`);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -129,162 +131,153 @@ export function CreateBoutModal({
   );
 }
 
+export function SuggestionRow({ s, onCreate, onCompare, onDismiss, createLabel = 'Create bout' }: {
+  s: MatchSuggestion; onCreate: () => void; onCompare: () => void; onDismiss?: () => void; createLabel?: string;
+}) {
+  const e = s.evaluation;
+  const side = (f: MatchSuggestion['fighter_a']) => (
+    <div>
+      <p className="font-display text-xl font-bold uppercase">{f.fight_name}</p>
+      <p className="text-xs text-ink-400">{f.fighter_code} · {formatWeight(f.weight_g)}</p>
+    </div>
+  );
+  const warnings = e.issues.filter((i) => i.severity !== 'info');
+  return (
+    <li className="rounded-lg border border-ink-700 bg-ink-900 p-4">
+      <div className="grid items-center gap-3 md:grid-cols-[1fr_auto_1fr_auto]">
+        {side(s.fighter_a)}
+        <span className="text-center font-display text-xl text-accent-500">VS</span>
+        {side(s.fighter_b)}
+        <div className="flex flex-col items-end gap-1">
+          <ClassificationBadge c={s.classification} />
+          <span className="font-display text-2xl font-bold">{s.score ?? '—'}</span>
+        </div>
+      </div>
+      <p className="mt-2 text-sm text-ink-300">{e.explanation.join(' ')}</p>
+      {warnings.length > 0 && <p className="mt-1 text-sm text-amber-300">{warnings.map((i) => i.message).join(' · ')}</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button onClick={onCreate}>{createLabel}</Button>
+        <Button variant="secondary" onClick={onCompare}>Compare</Button>
+        {onDismiss && <Button variant="ghost" onClick={onDismiss}>Dismiss</Button>}
+      </div>
+    </li>
+  );
+}
+
 export function Matchmaking() {
   const { eventId, setEventId, events } = useSelectedEvent();
   const roster = useEventRoster(eventId);
+  const q = useMatchSuggestions(eventId);
   const [cls, setCls] = useState<string>('');
   const [wcFilter, setWcFilter] = useState('');
-  const [msg, setMsg] = useState<{ tone: 'ok' | 'danger'; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [detail, setDetail] = useState<Evaluation | null>(null);
-  const [creating, setCreating] = useState<{ pair: [string, string]; evaluation: Evaluation | null; suggestionId?: string } | null>(null);
-  const [manual, setManual] = useState<[string, string]>(['', '']);
-  const sugg = useAsync(async () => {
-    if (!eventId) return [];
-    return must(await supabase.from('matchmaking_suggestions').select('id, fighter_a_id, fighter_b_id, score, classification, evaluation, generated_at').eq('event_id', eventId).eq('status', 'open').order('score', { ascending: false, nullsFirst: false })) as Suggestion[];
-  }, [eventId]);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MatchSuggestion | null>(null);
+  const [creating, setCreating] = useState<MatchSuggestion | null>(null);
 
-  const names = useMemo(() => Object.fromEntries((roster.data?.regs ?? []).map((r) => [r.fighter_id, r.fighters?.fight_name ?? r.fighter_id])), [roster.data]);
-  const regBy = useMemo(() => Object.fromEntries((roster.data?.regs ?? []).map((r) => [r.fighter_id, r])), [roster.data]);
+  const names = useMemo(
+    () => Object.fromEntries((q.data?.suggestions ?? []).flatMap((s) => [[s.fighter_a_id, s.fighter_a.fight_name], [s.fighter_b_id, s.fighter_b.fight_name]])),
+    [q.data],
+  );
 
-  async function generate() {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const r = await callFunction<{ count: number; candidates: number }>('matchmaking-generate', { event_id: eventId });
-      setMsg({ tone: 'ok', text: `Evaluated ${r.candidates} registrants; ${r.count} pairings are eligible or need review.` });
-      void sugg.reload();
-    } catch (e) {
-      setMsg({ tone: 'danger', text: (e as Error).message });
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function evaluateManual() {
-    if (!manual[0] || !manual[1] || manual[0] === manual[1]) return setMsg({ tone: 'danger', text: 'Choose two different fighters.' });
-    try {
-      const r = await callFunction<{ evaluation: Evaluation }>('matchmaking-generate', { event_id: eventId, fighter_a_id: manual[0], fighter_b_id: manual[1] });
-      setCreating({ pair: manual, evaluation: r.evaluation });
-    } catch (e) {
-      setMsg({ tone: 'danger', text: (e as Error).message });
-    }
-  }
   async function dismiss(id: string) {
-    const { error } = await supabase.from('matchmaking_suggestions').update({ status: 'dismissed' }).eq('id', id);
-    if (error) setMsg({ tone: 'danger', text: friendlyError(error) });
-    void sugg.reload();
+    const { error } = await supabase.rpc('dismiss_suggestion', { p_suggestion: id });
+    setMsg(error ? friendlyError(error) : null);
+    void q.reload();
   }
 
-  const rows = (sugg.data ?? []).filter((s) => (!cls || s.classification === cls) && (!wcFilter || s.evaluation.proposed_weight_class?.id === wcFilter));
-  const approved = (roster.data?.regs ?? []).filter((r) => r.status === 'approved').sort((a, b) => (a.declared_weight_g ?? 0) - (b.declared_weight_g ?? 0));
+  const rows = (q.data?.suggestions ?? []).filter((s) => (!cls || s.classification === cls) && (!wcFilter || s.evaluation.proposed_weight_class?.id === wcFilter));
+  const st = q.data?.stats;
 
   return (
     <div>
-      <PageHeader title="Matchmaking" actions={<EventPicker eventId={eventId} setEventId={setEventId} events={events} />} />
-      {msg && <div className="mb-4"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
+      <PageHeader
+        title="Matchmaking"
+        description="Suggested bouts update automatically as fighters are approved, weighed or booked. You approve every bout."
+        actions={<EventPicker eventId={eventId} setEventId={setEventId} events={events} />}
+      />
+      {msg && <div className="mb-4"><Alert>{msg}</Alert></div>}
       {!eventId ? (
         <EmptyState title="No events available" />
       ) : (
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-wrap items-end gap-3 rounded-lg border border-ink-700 bg-ink-900 p-4">
-            <Button onClick={() => void generate()} loading={busy}>Generate suggestions</Button>
-            <Select aria-label="Classification" value={cls} onChange={(e) => setCls(e.target.value)} className="w-56">
-              <option value="">All classifications</option>
-              {(['strong_candidate', 'possible_candidate', 'requires_review'] as Classification[]).map((c) => <option key={c} value={c}>{CLASSIFICATION_LABELS[c]}</option>)}
-            </Select>
-            <Select aria-label="Weight class" value={wcFilter} onChange={(e) => setWcFilter(e.target.value)} className="w-56">
-              <option value="">All weight classes</option>
-              {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${w.division})` : ''}</option>)}
-            </Select>
-            {sugg.data?.[0] && <span className="text-xs text-ink-400">Generated {formatDateTime(sugg.data[0].generated_at)}</span>}
-          </div>
-
-          <section className="rounded-lg border border-ink-700 bg-ink-900 p-4">
-            <h2 className="mb-3 text-xl font-semibold uppercase">Manual matchup</h2>
-            <div className="grid gap-2 md:grid-cols-[1fr_auto_1fr_auto]">
-              {[0, 1].map((i) => (
-                <Select key={i} aria-label={`Fighter ${i === 0 ? 'A' : 'B'}`} value={manual[i]} onChange={(e) => setManual((m) => (i === 0 ? [e.target.value, m[1]] : [m[0], e.target.value]))}>
-                  <option value="">Choose fighter {i === 0 ? 'A' : 'B'}…</option>
-                  {approved.map((r) => (
-                    <option key={r.fighter_id} value={r.fighter_id}>
-                      {r.fighters?.fight_name} · {formatWeight(r.declared_weight_g)} · {r.division}
-                    </option>
-                  ))}
+        <Loading loading={q.loading && !q.data} error={q.error}>
+          {q.data && st && (
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {([
+                  ['Registrants', st.registrants],
+                  ['Approved', st.approved],
+                  ['Ready to match', st.ready],
+                  ['Awaiting review', st.awaiting_review],
+                ] as const).map(([label, n]) => (
+                  <Card key={label} className="p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-400">{label}</p>
+                    <p className="font-display text-3xl font-bold">{n}</p>
+                  </Card>
+                ))}
+              </div>
+              <div className="grid items-center gap-3 sm:grid-cols-[16rem_16rem_1fr]">
+                <Select aria-label="Classification" value={cls} onChange={(e) => setCls(e.target.value)}>
+                  <option value="">All suggestions</option>
+                  {(['strong_candidate', 'possible_candidate', 'requires_review'] as Classification[]).map((c) => <option key={c} value={c}>{CLASSIFICATION_LABELS[c]}</option>)}
                 </Select>
-              )).flatMap((el, i) => (i === 0 ? [el, <span key="vs" className="self-center text-center font-display text-xl text-accent-500">VS</span>] : [el]))}
-              <Button variant="secondary" onClick={() => void evaluateManual()}>Evaluate & create</Button>
+                <Select aria-label="Weight class" value={wcFilter} onChange={(e) => setWcFilter(e.target.value)}>
+                  <option value="">All weight classes</option>
+                  {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${w.division})` : ''}</option>)}
+                </Select>
+                <span className="text-xs text-ink-400" aria-live="polite">
+                  {rows.length} suggestion{rows.length === 1 ? '' : 's'} · updated {formatDateTime(q.data.refreshed_at)}
+                </span>
+              </div>
+              {rows.length === 0 ? (
+                <EmptyState title="No suggested bouts yet">
+                  {st.ready < 2
+                    ? `Only ${st.ready} fighter${st.ready === 1 ? ' is' : 's are'} ready to match. Fighters need an approved registration, availability and no medical "not cleared" status — approve registrations under Fighters and suggestions appear here automatically.`
+                    : 'No compatible pairings among the ready fighters (division, level, weight, age and experience rules). Suggestions appear automatically as more fighters are approved.'}
+                </EmptyState>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {rows.map((s) => (
+                    <SuggestionRow key={s.id} s={s} onCreate={() => setCreating(s)} onCompare={() => setDetail(s)} onDismiss={() => void dismiss(s.id)} />
+                  ))}
+                </ul>
+              )}
             </div>
-            <p className="mt-2 text-xs text-ink-400">Only approved registrants are listed. The pairing is evaluated on the server before a bout can be created.</p>
-          </section>
-
-          <Loading loading={sugg.loading || roster.loading} error={sugg.error || roster.error}>
-            {rows.length === 0 ? (
-              <EmptyState title="No suggestions">Approve registrations, then generate suggestions.</EmptyState>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {rows.map((s) => {
-                  const e = s.evaluation;
-                  const side = (id: string) => (
-                    <div>
-                      <p className="font-display text-xl font-bold uppercase">{names[id] ?? 'Unknown'}</p>
-                      <p className="text-xs text-ink-400">{regBy[id]?.fighters?.fighter_code} · {formatWeight(regBy[id]?.declared_weight_g)}</p>
-                    </div>
-                  );
-                  return (
-                    <li key={s.id} className="rounded-lg border border-ink-700 bg-ink-900 p-4">
-                      <div className="grid items-center gap-3 md:grid-cols-[1fr_auto_1fr_auto]">
-                        {side(s.fighter_a_id)}
-                        <span className="text-center font-display text-xl text-accent-500">VS</span>
-                        {side(s.fighter_b_id)}
-                        <div className="flex flex-col items-end gap-1">
-                          <ClassificationBadge c={s.classification} />
-                          <span className="font-display text-2xl font-bold">{s.score ?? '—'}</span>
-                        </div>
-                      </div>
-                      <p className="mt-2 text-sm text-ink-300">{e.explanation.join(' ')}</p>
-                      {e.issues.filter((i) => i.severity !== 'info').length > 0 && (
-                        <p className="mt-1 text-sm text-amber-300">{e.issues.filter((i) => i.severity !== 'info').map((i) => i.message).join(' · ')}</p>
-                      )}
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button onClick={() => setCreating({ pair: [s.fighter_a_id, s.fighter_b_id], evaluation: e, suggestionId: s.id })}>Create bout</Button>
-                        <Button variant="secondary" onClick={() => setDetail(e)}>Compare</Button>
-                        <Button variant="ghost" onClick={() => void dismiss(s.id)}>Dismiss</Button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Loading>
-        </div>
+          )}
+        </Loading>
       )}
-      <Modal open={!!detail} onClose={() => setDetail(null)} title="Compare fighters" wide>
-        {detail && (
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              {[detail.fighter_a_id, detail.fighter_b_id].map((id) => (
-                <div key={id} className="rounded border border-ink-700 p-3">
-                  <p className="font-display text-xl font-bold uppercase">{names[id]}</p>
-                  <p className="text-sm text-ink-400">{regBy[id]?.fighters?.fighter_code}</p>
-                  <p className="mt-2 text-sm">Weight: {formatWeight(regBy[id]?.declared_weight_g)}</p>
-                  <p className="text-sm">Division: {regBy[id]?.division}</p>
-                </div>
-              ))}
-            </div>
-            <EvaluationDetails e={detail} />
-            <p className="text-xs text-ink-400">Records: {detail.components.record.detail} (* = self-reported).</p>
-          </div>
-        )}
-      </Modal>
+      <CompareModal s={detail} onClose={() => setDetail(null)} />
       <CreateBoutModal
         eventId={eventId}
-        pair={creating?.pair ?? null}
+        pair={creating ? [creating.fighter_a_id, creating.fighter_b_id] : null}
         evaluation={creating?.evaluation ?? null}
-        suggestionId={creating?.suggestionId}
+        suggestionId={creating?.id}
         classes={roster.data?.classes ?? []}
         names={names}
         onClose={() => setCreating(null)}
       />
     </div>
+  );
+}
+
+export function CompareModal({ s, onClose }: { s: MatchSuggestion | null; onClose: () => void }) {
+  return (
+    <Modal open={!!s} onClose={onClose} title="Compare fighters" wide>
+      {s && (
+        <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            {[s.fighter_a, s.fighter_b].map((f) => (
+              <div key={f.fighter_code} className="rounded border border-ink-700 p-3">
+                <p className="font-display text-xl font-bold uppercase">{f.fight_name}</p>
+                <p className="text-sm text-ink-400">{f.fighter_code}</p>
+                <p className="mt-2 text-sm">Weight: {formatWeight(f.weight_g)}</p>
+                <p className="text-sm">Division: {f.division}</p>
+              </div>
+            ))}
+          </div>
+          <EvaluationDetails e={s.evaluation} />
+          <p className="text-xs text-ink-400">Records: {s.evaluation.components.record.detail} (* = self-reported).</p>
+        </div>
+      )}
+    </Modal>
   );
 }

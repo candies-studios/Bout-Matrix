@@ -27,7 +27,11 @@ export async function callFunction<T = unknown>(name: string, body: unknown): Pr
       body: JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, 'network', 'Network error. Check your connection and try again.');
+    throw new ApiError(
+      0,
+      'network',
+      `Could not reach the server function "${name}". Check your connection; if this keeps happening, the Supabase Edge Functions may not be deployed yet (docs/DEPLOYMENT.md, step 3).`,
+    );
   }
   const out = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {

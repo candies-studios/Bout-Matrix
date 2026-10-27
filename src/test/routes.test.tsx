@@ -16,7 +16,19 @@ const EVENT = {
 const FIGHTER_JSON = { fight_name: 'Alpha', nickname: null, country: 'India', hometown: null, photo_path: null, gym: 'Iron Tide', primary_style: null, record: { wins: 3, losses: 1, draws: 0, no_contests: 0 } };
 const RPC: Record<string, unknown> = {
   my_access: { user_id: 'u1', is_super_admin: false, org_roles: [{ org_id: 'o1', role: 'org_admin' }], event_roles: [], coach_id: null },
-  admin_overview: { fighters: 2, coaches: 1, gyms: 1, active_events: 1, pending_registrations: 1, fighters_by_weight_class: [{ name: 'Lightweight', division: 'men', n: 2 }], open_suggestions: 0, outstanding_offers: 0, accepted_offers: 0, declined_offers: 0, confirmed_bouts: 1, email_failures: 0, upcoming_events: [{ id: 'e1', name: 'Demo Night', slug: 'demo', starts_at: null, status: 'registration_open' }] },
+  admin_overview_fresh: { fighters: 2, coaches: 1, gyms: 1, active_events: 1, pending_registrations: 1, fighters_by_weight_class: [{ name: 'Lightweight', division: 'men', n: 2 }], open_suggestions: 0, outstanding_offers: 0, accepted_offers: 0, declined_offers: 0, confirmed_bouts: 1, email_failures: 0, upcoming_events: [{ id: 'e1', name: 'Demo Night', slug: 'demo', starts_at: null, status: 'registration_open' }] },
+  get_match_suggestions: {
+    refreshed_at: '2026-10-27T08:00:00Z',
+    stats: { registrants: 4, approved: 3, ready: 2, awaiting_review: 1 },
+    suggestions: [{
+      id: 's1', fighter_a_id: 'fa', fighter_b_id: 'fb', score: 81.5, classification: 'strong_candidate',
+      fighter_a: { fight_name: 'Night Hawk', fighter_code: 'WDS-F-0001', weight_g: 70000, division: 'men' },
+      fighter_b: { fight_name: 'The Viper', fighter_code: 'WDS-F-0002', weight_g: 70400, division: 'men' },
+      evaluation: { fighter_a_id: 'fa', fighter_b_id: 'fb', score: 81.5, classification: 'strong_candidate', proposed_weight_class: { id: 'w1', name: 'Lightweight' }, weight_diff_g: 400,
+        components: { weight: { score: 0.8, detail: '0.4 kg apart (limit 2.3 kg)' }, experience: { score: 1, detail: '4 vs 4 fights' }, record: { score: 1, detail: '3-1-0 vs 3-1-0' }, age: { score: 1, detail: '25 vs 25 years' }, skill: { score: null, detail: 'Skill level not provided' } },
+        explanation: ['Weights 0.4 kg apart (limit 2.3 kg), proposed Lightweight.'], missing: [], issues: [] },
+    }],
+  },
   public_list_events: [EVENT],
   public_get_event: [EVENT],
   public_registration_event: [EVENT],
@@ -109,7 +121,7 @@ const cases: [string, RegExp, boolean?][] = [
   ['/admin/fighters/f1', /Event registrations/],
   ['/admin/coaches', /No coaches/],
   ['/admin/gyms', /No gyms/],
-  ['/admin/matchmaking?event=e1', /Generate suggestions/],
+  ['/admin/matchmaking?event=e1', /Ready to match/],
   ['/admin/bouts?event=e1', /No bouts yet/],
   ['/admin/fight-cards?event=e1', /Publish card|Unpublish card/],
   ['/admin/emails', /No emails/],
@@ -130,6 +142,16 @@ describe('route smoke tests', () => {
     await waitFor(() => screen.getByText('Bravo'));
     expect(screen.queryByRole('button', { name: /publish|edit|delete|approve/i })).toBeNull();
     expect(document.body.textContent).not.toMatch(/@|date of birth|legal name/i);
+  });
+
+  it('matchmaking shows automatic suggestions with no generate button or manual pairing', async () => {
+    await renderRoute('/admin/matchmaking?event=e1');
+    await waitFor(() => screen.getByText('The Viper'));
+    expect(screen.getByText('Night Hawk')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create bout' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Generate suggestions/ })).toBeNull();
+    expect(screen.queryByText(/Manual matchup/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Evaluate & create/ })).toBeNull();
   });
 
   it('admin routes redirect anonymous visitors to sign-in', async () => {

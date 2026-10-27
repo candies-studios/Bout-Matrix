@@ -105,6 +105,8 @@ export interface Evaluation {
 
 const SKILL = { novice: 0, intermediate: 1, advanced: 2, elite: 3 } as const;
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+/** Grams → "x.y" kg, rounded half-up on whole grams (identical in the SQL engine). */
+const kg1 = (g: number) => (Math.round(g / 100) / 10).toFixed(1);
 
 export function totalFights(r: FighterRecord | null): number | null {
   if (!r) return null;
@@ -217,9 +219,9 @@ export function evaluatePair(
     if (wc) proposed = { id: wc.id, name: wc.name };
     else if (classes.length) add('review', 'no_weight_class', 'No configured weight class fits the heavier fighter.');
     if (diff > limit) {
-      add('block', 'weight_gap', `Weight difference ${(diff / 1000).toFixed(1)} kg exceeds the permitted ${(limit / 1000).toFixed(1)} kg.`);
+      add('block', 'weight_gap', `Weight difference ${kg1(diff)} kg exceeds the permitted ${kg1(limit)} kg.`);
     }
-    weightScore = { score: clamp01(1 - diff / Math.max(limit, 1)), detail: `${(diff / 1000).toFixed(1)} kg apart (limit ${(limit / 1000).toFixed(1)} kg)` };
+    weightScore = { score: clamp01(1 - diff / Math.max(limit, 1)), detail: `${kg1(diff)} kg apart (limit ${kg1(limit)} kg)` };
     explanation.push(`Weights ${weightScore.detail}${proposed ? `, proposed ${proposed.name}` : ''}.`);
   }
 

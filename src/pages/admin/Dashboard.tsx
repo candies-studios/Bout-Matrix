@@ -34,7 +34,7 @@ function Stat({ label, value, to, tone }: { label: string; value: number; to: st
 
 export function Dashboard() {
   const { access, session } = useAuth();
-  const q = useAsync(async () => must(await supabase.rpc('admin_overview')) as Overview, []);
+  const q = useAsync(async () => must(await supabase.rpc('admin_overview_fresh')) as Overview, []);
   const o = q.data;
   return (
     <div>

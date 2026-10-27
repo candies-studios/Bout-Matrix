@@ -12,7 +12,8 @@ import { EventPicker } from '@/components/EventPicker';
 import { useSelectedEvent } from '@/hooks/useSelectedEvent';
 import { Loading } from '@/components/Loading';
 import { BoutStatusBadge } from '@/components/StatusBadge';
-import { CreateBoutModal, EvaluationDetails } from './Matchmaking';
+import { CompareModal, CreateBoutModal, EvaluationDetails, SuggestionRow } from './Matchmaking';
+import { useMatchSuggestions, type MatchSuggestion } from '@/hooks/useMatchSuggestions';
 import { useEventRoster } from '@/hooks/useEventRoster';
 import { BOUT_SELECT, canManageEvent, type BoutRow } from '@/lib/bouts';
 
@@ -88,8 +89,14 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
   const [reason, setReason] = useState('');
   const [hours, setHours] = useState('');
   const [busy, setBusy] = useState(false);
-  const [replace, setReplace] = useState<{ keep: string; opponent: string } | null>(null);
-  const [creating, setCreating] = useState<[string, string] | null>(null);
+  const [showReplacements, setShowReplacements] = useState(false);
+  const [creating, setCreating] = useState<MatchSuggestion | null>(null);
+  const [comparing, setComparing] = useState<MatchSuggestion | null>(null);
+  // Automatic suggestions for this event; replacements are the ones involving either fighter.
+  const suggestions = useMatchSuggestions(showReplacements ? bout.event_id : '');
+  const replacements = (suggestions.data?.suggestions ?? []).filter((x) =>
+    [x.fighter_a_id, x.fighter_b_id].some((id) => id === bout.fighter_a_id || id === bout.fighter_b_id),
+  );
 
   const extra = useAsync(async () => {
     const offers = must(await supabase.from('bout_offers').select('id, fighter_id, corner, offer_version, status, expires_at, sent_at, first_viewed_at, responded_at, revoked_reason, reminder_sent_at').eq('bout_id', bout.id).order('offer_version', { ascending: false }).order('corner')) as Offer[];
@@ -150,7 +157,8 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
   const actions = availableManualActions(bout.status, admin);
   const canOffer = ['draft', 'expired', 'under_review'].includes(bout.status);
   const editable = termsEditable(bout.status);
-  const canReplace = admin && ['declined', 'expired', 'under_review'].includes(bout.status);
+  // Declined/expired bouts release their fighters, so the automatic engine already suggests new opponents.
+  const canReplace = admin && ['declined', 'expired'].includes(bout.status);
   const currentOffers = extra.data?.offers.filter((o) => o.offer_version === bout.offer_version) ?? [];
 
   return (
@@ -189,7 +197,7 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
             </Button>
           ))}
           {canReplace && (
-            <Button variant="secondary" onClick={() => setReplace({ keep: bout.fighter_a_id, opponent: '' })}>Replace an opponent</Button>
+            <Button variant="secondary" onClick={() => setShowReplacements((v) => !v)}>Suggested replacement opponents</Button>
           )}
         </div>
 
@@ -206,23 +214,24 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
           </div>
         )}
 
-        {replace && (
+        {showReplacements && (
           <div className="rounded-md border border-ink-700 p-4">
-            <p className="mb-2 font-semibold">Replace an opponent — the original bout is kept in history and cancelled.</p>
-            <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-              <Select aria-label="Fighter to keep" value={replace.keep} onChange={(e) => setReplace({ ...replace, keep: e.target.value })}>
-                <option value={bout.fighter_a_id}>Keep {bout.fighter_a?.fight_name}</option>
-                <option value={bout.fighter_b_id}>Keep {bout.fighter_b?.fight_name}</option>
-              </Select>
-              <Select aria-label="New opponent" value={replace.opponent} onChange={(e) => setReplace({ ...replace, opponent: e.target.value })}>
-                <option value="">New opponent…</option>
-                {(roster.data?.regs ?? []).filter((r) => r.status === 'approved' && r.fighter_id !== bout.fighter_a_id && r.fighter_id !== bout.fighter_b_id).map((r) => (
-                  <option key={r.fighter_id} value={r.fighter_id}>{r.fighters?.fight_name} · {formatWeight(r.declared_weight_g)}</option>
+            <p className="mb-3 font-semibold">Suggested replacements — the original bout is kept in history and cancelled when you create the new one.</p>
+            {suggestions.loading && !suggestions.data ? (
+              <p className="text-ink-400">Finding opponents…</p>
+            ) : replacements.length === 0 ? (
+              <p className="text-ink-400">No compatible opponents among the approved, available fighters right now. This list updates automatically as fighters are approved.</p>
+            ) : (
+              <ul className="flex flex-col gap-3">
+                {replacements.map((x) => (
+                  <SuggestionRow key={x.id} s={x} createLabel="Use as replacement" onCreate={() => setCreating(x)} onCompare={() => setComparing(x)} />
                 ))}
-              </Select>
-              <Button disabled={!replace.opponent} onClick={() => setCreating([replace.keep, replace.opponent])}>Continue</Button>
-            </div>
+              </ul>
+            )}
           </div>
+        )}
+        {bout.status === 'under_review' && admin && (
+          <p className="text-sm text-ink-400">To replace a fighter in a bout under review, cancel it with a reason; both fighters are then released and new opponents are suggested automatically on the Matchmaking page.</p>
         )}
 
         <Section title="Offers">
@@ -304,13 +313,15 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
       </div>
       <CreateBoutModal
         eventId={bout.event_id}
-        pair={creating}
-        evaluation={null}
+        pair={creating ? [creating.fighter_a_id, creating.fighter_b_id] : null}
+        evaluation={creating?.evaluation ?? null}
+        suggestionId={creating?.id}
         replacesBoutId={bout.id}
         classes={roster.data?.classes ?? []}
-        names={Object.fromEntries((roster.data?.regs ?? []).map((r) => [r.fighter_id, r.fighters?.fight_name ?? '']))}
+        names={creating ? { [creating.fighter_a_id]: creating.fighter_a.fight_name, [creating.fighter_b_id]: creating.fighter_b.fight_name } : {}}
         onClose={() => setCreating(null)}
       />
+      <CompareModal s={comparing} onClose={() => setComparing(null)} />
     </Modal>
   );
 }

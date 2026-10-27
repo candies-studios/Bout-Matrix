@@ -328,7 +328,7 @@ function PublicProfile({ f, onDone }: { f: Fighter; onDone: (t: string, e?: unkn
         {([['fight_name', 'Fight name'], ['nickname', 'Nickname'], ['primary_style', 'Style'], ['hometown', 'Hometown'], ['country', 'Country'], ['height_cm', 'Height cm'], ['reach_cm', 'Reach cm']] as const).map(([k, l]) => (
           <Field key={k} label={l}>{({ id }) => <Input id={id} name={k} defaultValue={(f[k] as string | number | null) ?? ''} />}</Field>
         ))}
-        <Field label="Division">{({ id }) => <Select id={id} name="division" defaultValue={f.division}><option value="men">men</option><option value="women">women</option></Select>}</Field>
+        <Field label="Division">{({ id }) => <Select id={id} name="division" defaultValue={f.division}>{[...new Set([f.division, 'men', 'women'])].map((d) => <option key={d} value={d}>{humanize(d)}</option>)}</Select>}</Field>
         <Field label="Level">{({ id }) => <Select id={id} name="competition_level" defaultValue={f.competition_level}>{['amateur', 'semi_pro', 'professional'].map((s) => <option key={s} value={s}>{humanize(s)}</option>)}</Select>}</Field>
         <Field label="Skill">{({ id }) => <Select id={id} name="skill_level" defaultValue={f.skill_level ?? ''}><option value="">Unknown</option>{['novice', 'intermediate', 'advanced', 'elite'].map((s) => <option key={s} value={s}>{humanize(s)}</option>)}</Select>}</Field>
         <div className="md:col-span-2"><Field label="Bio">{({ id }) => <Textarea id={id} name="bio" defaultValue={f.bio ?? ''} />}</Field></div>

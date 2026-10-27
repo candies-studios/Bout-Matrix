@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { publicMediaUrl } from '@/lib/api';
 import { useAsync } from '@/hooks/useAsync';
 import { useSeo } from '@/hooks/useSeo';
-import { formatDateTime, recordText, venueText, type RecordLike } from '@/lib/format';
+import { formatDateTime, humanize, recordText, venueText, type RecordLike } from '@/lib/format';
 import { Badge, EmptyState, Select } from '@/components/ui';
 import { Loading } from '@/components/Loading';
 import { ShareButtons } from '@/components/ShareButtons';
@@ -122,7 +122,7 @@ export function FightCardPage() {
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-wide text-ink-400">
                             <span>
                               Bout {b.card_order ?? i + 1} · {b.weight_class ?? 'Catchweight'}
-                              {b.division ? ` · ${b.division}` : ''}
+                              {b.division ? ` · ${humanize(b.division)}` : ''}
                             </span>
                             <span className="flex items-center gap-2">
                               {b.rounds} × {b.round_minutes} min

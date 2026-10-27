@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CLASSIFICATION_LABELS, type Classification, type Evaluation } from '@domain/matchmaking.ts';
 import { supabase, friendlyError } from '@/lib/supabase';
-import { formatDateTime, formatWeight } from '@/lib/format';
+import { formatDateTime, formatWeight, humanize } from '@/lib/format';
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Textarea, type Tone } from '@/components/ui';
 import { Modal } from '@/components/more';
 import { EventPicker } from '@/components/EventPicker';
@@ -106,7 +106,7 @@ export function CreateBoutModal({
                 <Select id={id} value={wc} onChange={(e) => setWc(e.target.value)}>
                   <option value="">{evaluation?.proposed_weight_class ? `Proposed (${evaluation.proposed_weight_class.name})` : 'Choose…'}</option>
                   {classes.map((w) => (
-                    <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${w.division})` : ''}</option>
+                    <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${humanize(w.division)})` : ''}</option>
                   ))}
                 </Select>
               )}
@@ -222,7 +222,7 @@ export function Matchmaking() {
                 </Select>
                 <Select aria-label="Weight class" value={wcFilter} onChange={(e) => setWcFilter(e.target.value)}>
                   <option value="">All weight classes</option>
-                  {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${w.division})` : ''}</option>)}
+                  {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${humanize(w.division)})` : ''}</option>)}
                 </Select>
                 <span className="text-xs text-ink-400" aria-live="polite">
                   {rows.length} suggestion{rows.length === 1 ? '' : 's'} · updated {formatDateTime(q.data.refreshed_at)}
@@ -270,7 +270,7 @@ export function CompareModal({ s, onClose }: { s: MatchSuggestion | null; onClos
                 <p className="font-display text-xl font-bold uppercase">{f.fight_name}</p>
                 <p className="text-sm text-ink-400">{f.fighter_code}</p>
                 <p className="mt-2 text-sm">Weight: {formatWeight(f.weight_g)}</p>
-                <p className="text-sm">Division: {f.division}</p>
+                <p className="text-sm">Division: {humanize(f.division)}</p>
               </div>
             ))}
           </div>

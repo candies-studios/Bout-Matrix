@@ -291,7 +291,7 @@ export function WeightClasses({ eventId, orgId }: { eventId: string | null; orgI
           {(q.data ?? []).map((w) => (
             <tr key={w.id}>
               <td>{w.name}</td>
-              <td>{w.division ?? 'Any'}</td>
+              <td>{w.division ? humanize(w.division) : 'Any'}</td>
               <td>{kg(w.min_g) || '—'}</td>
               <td>
                 <Input aria-label={`${w.name} upper limit`} type="number" step="0.01" defaultValue={kg(w.max_g)} className="w-28" onBlur={(e) => Number(e.target.value) > 0 && toGrams(Number(e.target.value), 'kg') !== w.max_g && void update(w.id, { max_g: toGrams(Number(e.target.value), 'kg') })} />

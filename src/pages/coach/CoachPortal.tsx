@@ -3,7 +3,7 @@ import { Link } from 'react-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { must, useAsync } from '@/hooks/useAsync';
-import { formatWeight } from '@/lib/format';
+import { formatWeight, humanize } from '@/lib/format';
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader } from '@/components/ui';
 import { Section, Table } from '@/components/more';
 import { Loading } from '@/components/Loading';
@@ -98,7 +98,7 @@ export function CoachPortal() {
                 {roster.data.map((f) => (
                   <tr key={f.id}>
                     <td className="font-semibold">{f.fight_name}<div className="text-xs text-ink-400">{f.fighter_code}</div></td>
-                    <td>{f.division}</td>
+                    <td>{humanize(f.division)}</td>
                     <td>
                       {f.event_registrations.map((r) => (
                         <div key={r.id} className="flex items-center gap-2 text-sm">

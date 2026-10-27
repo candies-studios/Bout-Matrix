@@ -311,7 +311,7 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
               <Field label="Weight class">{({ id }) => (
                 <Select id={id} name="weight_class_id" defaultValue={bout.weight_class_id ?? ''}>
                   <option value="">Catchweight</option>
-                  {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${w.division})` : ''}</option>)}
+                  {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${humanize(w.division)})` : ''}</option>)}
                 </Select>
               )}</Field>
               <Field label="Contracted kg">{({ id }) => <Input id={id} name="contracted" type="number" step="0.1" defaultValue={bout.contracted_weight_g ? bout.contracted_weight_g / 1000 : ''} />}</Field>

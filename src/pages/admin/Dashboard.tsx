@@ -86,7 +86,7 @@ export function Dashboard() {
                       return (
                         <li key={`${w.name}-${w.division}`} className="grid grid-cols-[10rem_1fr_2rem] items-center gap-3 text-sm">
                           <span className="truncate">
-                            {w.name} <span className="text-ink-400">{w.division}</span>
+                            {w.name} <span className="text-ink-400">{w.division ? humanize(w.division) : ''}</span>
                           </span>
                           <span className="h-2 rounded bg-ink-800">
                             <span className="block h-2 rounded bg-accent-600" style={{ width: `${(w.n / max) * 100}%` }} />

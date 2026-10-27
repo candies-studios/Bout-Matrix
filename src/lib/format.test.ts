@@ -16,3 +16,14 @@ describe('format helpers', () => {
     expect(csv).toBe(`a,b\n"'=HYPERLINK(""x"")","x,y"`);
   });
 });
+
+describe('humanize divisions', () => {
+  it('reads imported division slugs naturally', async () => {
+    const { humanize } = await import('./format');
+    expect(humanize('k_one_u_eighteen_women')).toBe('K1 U18 women');
+    expect(humanize('mma_tourney_adult_men')).toBe('MMA tournament adult men');
+    expect(humanize('mma_u_twelve_men')).toBe('MMA U12 men');
+    expect(humanize('men')).toBe('Men');
+    expect(humanize('registration_open')).toBe('Registration open');
+  });
+});

@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router';
 import { useEventDetail } from '@/hooks/useEventDetail';
 import { useSeo } from '@/hooks/useSeo';
-import { formatDateTime, venueText } from '@/lib/format';
+import { formatDateTime, humanize, venueText } from '@/lib/format';
 import { Badge, Card, EmptyState } from '@/components/ui';
 import { Loading } from '@/components/Loading';
 import { ShareButtons } from '@/components/ShareButtons';
@@ -66,7 +66,7 @@ export function EventPage() {
                 {e.weight_classes.map((w) => (
                   <li key={w.id} className="rounded border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm">
                     {w.name}
-                    {w.division ? ` · ${w.division}` : ''} · {(w.max_g / 1000).toFixed(1)} kg
+                    {w.division ? ` · ${humanize(w.division)}` : ''} · {(w.max_g / 1000).toFixed(1)} kg
                   </li>
                 ))}
               </ul>

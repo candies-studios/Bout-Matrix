@@ -45,8 +45,16 @@ export function fromLocalInput(v: string): string | null {
   return v ? new Date(v).toISOString() : null;
 }
 
+// Division slugs can only contain letters and underscores, so "K1" / "U18" are spelled out in them.
+const DIVISION_WORDS: [RegExp, string][] = [
+  [/\bk one\b/g, 'K1'], [/\bmma tourney\b/g, 'MMA tournament'], [/\bmma\b/g, 'MMA'],
+  [/\bu eighteen\b/g, 'U18'], [/\bu sixteen\b/g, 'U16'], [/\bu fourteen\b/g, 'U14'], [/\bu twelve\b/g, 'U12'],
+];
+
 export function humanize(s: string): string {
-  return s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
+  let out = s.replace(/_/g, ' ');
+  for (const [re, word] of DIVISION_WORDS) out = out.replace(re, word);
+  return out.replace(/^\w/, (c) => c.toUpperCase());
 }
 
 export function toCsv(rows: Record<string, unknown>[]): string {

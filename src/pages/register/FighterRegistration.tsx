@@ -202,7 +202,7 @@ export function FighterRegistration() {
                         {classes.map((w) => (
                           <option key={w.id} value={w.id}>
                             {w.name}
-                            {w.division ? ` (${w.division})` : ''} — up to {(w.max_g / 1000).toFixed(1)} kg
+                            {w.division ? ` (${humanize(w.division)})` : ''} — up to {(w.max_g / 1000).toFixed(1)} kg
                           </option>
                         ))}
                       </Select>

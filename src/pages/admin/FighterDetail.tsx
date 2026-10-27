@@ -286,11 +286,35 @@ function PublicProfile({ f, onDone }: { f: Fighter; onDone: (t: string, e?: unkn
       .eq('id', f.id);
     onDone('Profile saved.', error);
   }
+  // Only publishing an uploaded photo needs the server function (it copies the photo to public storage).
+  // Everything else is a plain, permission-checked update, so it works without the server functions.
+  async function setApproved(v: boolean) {
+    const { error } = await supabase.from('fighters').update({ public_profile_approved: v }).eq('id', f.id);
+    return error;
+  }
   async function approve(v: boolean) {
     setBusy(true);
     try {
-      await callFunction('fighter-profile-approval', { fighter_id: f.id, approve: v });
-      onDone(v ? 'Public profile approved.' : 'Public profile withdrawn.');
+      const needsPhotoCopy = v ? !!f.photo_path : !!f.public_photo_path;
+      if (!needsPhotoCopy) {
+        const error = await setApproved(v);
+        onDone(v ? 'Public profile approved.' : 'Public profile withdrawn.', error ?? undefined);
+        return;
+      }
+      try {
+        await callFunction('fighter-profile-approval', { fighter_id: f.id, approve: v });
+        onDone(v ? 'Public profile approved.' : 'Public profile withdrawn.');
+      } catch (e) {
+        const err = e as { code?: string; status?: number };
+        if (err.code !== 'network' && err.status !== 404) throw e;
+        // Server functions not deployed: still approve/withdraw. Withdrawn profiles never show a photo.
+        const error = await setApproved(v);
+        onDone(
+          v ? 'Public profile approved. The photo will appear once the server functions are deployed (docs/DEPLOYMENT.md, step 3).'
+            : 'Public profile withdrawn — the photo is no longer shown anywhere.',
+          error ?? undefined,
+        );
+      }
     } catch (e) {
       onDone('', e);
     } finally {

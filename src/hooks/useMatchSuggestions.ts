@@ -19,8 +19,20 @@ export interface MatchSuggestion {
   fighter_a: SuggestionSide;
   fighter_b: SuggestionSide;
 }
+/** A ready fighter who appears in no suggestion, with the reason (computed with the suggestions). */
+export interface UnmatchedFighter {
+  fighter_id: string;
+  fight_name: string;
+  fighter_code: string;
+  division: string;
+  weight_g: number | null;
+  reason_code: string;
+  reason: string;
+  closest_opponent: { fight_name: string; fighter_code: string; weight_g: number | null } | null;
+}
 export interface MatchSuggestions {
   refreshed_at: string | null;
+  unmatched?: UnmatchedFighter[];
   stats: { registrants: number; approved: number; ready: number; awaiting_review: number };
   suggestions: MatchSuggestion[];
 }

@@ -19,6 +19,8 @@ const RPC: Record<string, unknown> = {
   admin_overview_fresh: { fighters: 2, coaches: 1, gyms: 1, active_events: 1, pending_registrations: 1, fighters_by_weight_class: [{ name: 'Lightweight', division: 'men', n: 2 }], open_suggestions: 0, outstanding_offers: 0, accepted_offers: 0, declined_offers: 0, confirmed_bouts: 1, email_failures: 0, upcoming_events: [{ id: 'e1', name: 'Demo Night', slug: 'demo', starts_at: null, status: 'registration_open' }] },
   get_match_suggestions: {
     refreshed_at: '2026-10-27T08:00:00Z',
+    unmatched: [{ fighter_id: 'fc', fight_name: 'Lone Wolf', fighter_code: 'WDS-F-0003', division: 'k_one_u_twelve_men', weight_g: 30000,
+      reason_code: 'alone_in_division', reason: 'No other ready fighter in this division (same discipline, age group and gender).', closest_opponent: null }],
     stats: { registrants: 4, approved: 3, ready: 2, awaiting_review: 1 },
     suggestions: [{
       id: 's1', fighter_a_id: 'fa', fighter_b_id: 'fb', score: 81.5, classification: 'strong_candidate',
@@ -164,6 +166,14 @@ describe('route smoke tests', () => {
     fireEvent.change(picker, { target: { value: 'fb' } });
     expect(screen.getByText('The Viper')).toBeTruthy();
     expect(screen.getByText(/1 suggestion ·/)).toBeTruthy();
+  });
+
+  it('matchmaking lists ready fighters who have no match, with the reason', async () => {
+    await renderRoute('/admin/matchmaking?event=e1');
+    await waitFor(() => screen.getByText(/Unmatched fighters \(1\)/));
+    expect(screen.getByText('Lone Wolf')).toBeTruthy();
+    expect(screen.getByText('K1 U12 men')).toBeTruthy();
+    expect(screen.getByText(/No other ready fighter in this division/)).toBeTruthy();
   });
 
   it('admin routes redirect anonymous visitors to sign-in', async () => {

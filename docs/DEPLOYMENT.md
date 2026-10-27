@@ -86,6 +86,25 @@ Functions deployed: `register-fighter`, `register-coach`, `registration-upload-u
    pages). If you serve images from another host, extend the CSP `img-src`.
 4. Add your custom domain and update `SITE_URL` / `ALLOWED_ORIGINS` secrets and Supabase Auth URLs to match.
 
+## 4b. Alternative: GitHub Pages
+
+GitHub Pages serves files as they are, so the app must be **built** first — uploading the source shows a
+blank page. `.github/workflows/deploy-pages.yml` builds and deploys automatically on every push to `main`.
+
+1. Make sure `.github/workflows/deploy-pages.yml` exists in the repository (web uploads often skip folders
+   starting with a dot — create it with **Add file → Create new file** and paste the contents).
+2. **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. **Settings → Secrets and variables → Actions → Variables**: add `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_ANON_KEY` (public values; never the service-role key).
+4. Push (or **Actions → Deploy to GitHub Pages → Run workflow**). The site appears at
+   `https://<owner>.github.io/<repo>/`.
+5. Set the Edge Function secrets `SITE_URL=https://<owner>.github.io/<repo>` and add
+   `https://<owner>.github.io` to `ALLOWED_ORIGINS`; add the same URL + `/admin/login` and `/coach` to
+   Supabase Auth redirect URLs.
+
+Deep links (e.g. `/Bout-Matrix/events/x`) work through `public/404.html`. Note that GitHub Pages cannot send
+the security headers in `vercel.json` (CSP, HSTS); Vercel is recommended for production.
+
 ## 5. First administrator
 
 1. Supabase → Authentication → Users → **Add user** → your email, a strong password, tick *Auto confirm*.

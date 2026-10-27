@@ -29,6 +29,7 @@ const RPC: Record<string, unknown> = {
         explanation: ['Weights 0.4 kg apart (limit 2.3 kg), proposed Lightweight.'], missing: [], issues: [] },
     }],
   },
+  public_get_offer: { ok: true, status: 'pending', can_respond: true, expires_at: '2026-12-01T00:00:00Z', responded_at: null, fighter: { fight_name: 'Alpha', fighter_code: 'WDS-F-0001' }, terms: { bout_code: 'B1', event_name: 'Demo Night', starts_at: null, timezone: 'UTC', venue_name: null, venue_city: null, weight_class: 'Lightweight', weight_limit_g: 70307, contracted_weight_g: null, rounds: 3, round_minutes: 5, rules_text: null, opponent: { fight_name: 'Bravo', nickname: null, country: null, gym: null, primary_style: null, height_cm: null, reach_cm: null, declared_weight_g: 70000, record: null } } },
   public_list_events: [EVENT],
   public_get_event: [EVENT],
   public_registration_event: [EVENT],

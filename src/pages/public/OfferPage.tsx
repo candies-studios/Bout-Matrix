@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
-import { callFunction } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { useAsync } from '@/hooks/useAsync';
 import { formatDateTime, formatWeight, recordText, TBA } from '@/lib/format';
 import { Alert, Badge, Button, Card, Field, Textarea } from '@/components/ui';
@@ -56,14 +56,16 @@ interface OfferView {
 }
 
 const MESSAGES: Record<string, string> = {
-  not_found: 'This offer link is not valid. Check that you used the full link from your most recent email.',
+  not_found: 'This offer link is not valid. Check that you used the full link you were sent most recently.',
   expired: 'This offer has expired.',
   revoked: 'This offer was withdrawn by the organisers while the bout is reviewed. They will contact you.',
-  superseded: 'A newer offer replaced this one. Use the link in your most recent email.',
+  superseded: 'A newer offer replaced this one. Use the most recent link you were sent.',
   withdrawn: 'This offer was withdrawn.',
   already_responded: 'You have already responded to this offer.',
+  rate_limited: 'Too many attempts. Please wait a few minutes and try again.',
+  invalid: 'Something was wrong with that answer. Please try again.',
   not_open: 'This bout is no longer accepting responses.',
-  accepted: 'You accepted this offer. The organisers will confirm the bout by email.',
+  accepted: 'You accepted this offer. The organisers will let you know once the bout is confirmed.',
   declined: 'You declined this offer.',
 };
 
@@ -71,11 +73,9 @@ export function OfferPage() {
   const { offerToken } = useParams();
   useNoIndex();
   const q = useAsync(async () => {
-    try {
-      return await callFunction<OfferView>('offer-view', { token: offerToken });
-    } catch (e) {
-      return { ok: false, code: (e as { code?: string }).code ?? 'not_found' } as OfferView;
-    }
+    const { data, error } = await supabase.rpc('public_get_offer', { p_token: offerToken ?? '' });
+    if (error) throw error;
+    return data as OfferView;
   }, [offerToken]);
   const [choice, setChoice] = useState<'accept' | 'decline' | null>(null);
   const [reason, setReason] = useState('');
@@ -86,8 +86,9 @@ export function OfferPage() {
     if (!choice) return;
     setBusy(true);
     try {
-      const r = await callFunction<{ ok: boolean; code?: string; response?: string }>('offer-respond', { token: offerToken, response: choice, reason: reason || undefined });
-      setResult(r);
+      const { data, error } = await supabase.rpc('public_respond_offer', { p_token: offerToken ?? '', p_response: choice, p_reason: reason || null });
+      if (error) throw error;
+      setResult(data as { ok: boolean; code?: string; response?: string });
     } catch (e) {
       setResult({ ok: false, code: (e as { code?: string }).code });
     } finally {
@@ -148,7 +149,7 @@ export function OfferPage() {
                 {result.ok ? (
                   <Alert tone="ok">
                     {result.response === 'accept'
-                      ? 'Thank you — your acceptance is recorded. The bout is final only once the organisers confirm it; you will receive an email.'
+                      ? 'Thank you — your acceptance is recorded. The bout is final only once the organisers confirm it; they will let you know.'
                       : 'Thank you — your decline is recorded. The organisers have been notified.'}
                   </Alert>
                 ) : (

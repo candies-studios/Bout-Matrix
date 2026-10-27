@@ -155,6 +155,17 @@ describe('route smoke tests', () => {
     expect(screen.queryByRole('button', { name: /Evaluate & create/ })).toBeNull();
   });
 
+  it('matchmaking can be filtered to one fighter, listing only fighters in the current suggestions', async () => {
+    await renderRoute('/admin/matchmaking?event=e1');
+    await waitFor(() => screen.getByText('The Viper'));
+    const picker = screen.getByRole('combobox', { name: 'Fighter' }) as HTMLSelectElement;
+    expect([...picker.options].map((o) => o.text)).toEqual(['All fighters (2)', 'Night Hawk · WDS-F-0001', 'The Viper · WDS-F-0002']);
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.change(picker, { target: { value: 'fb' } });
+    expect(screen.getByText('The Viper')).toBeTruthy();
+    expect(screen.getByText(/1 suggestion ·/)).toBeTruthy();
+  });
+
   it('admin routes redirect anonymous visitors to sign-in', async () => {
     await renderRoute('/admin/fighters', false);
     await waitFor(() => screen.getByText(/Admin/));

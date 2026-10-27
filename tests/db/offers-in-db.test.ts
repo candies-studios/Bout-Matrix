@@ -137,3 +137,21 @@ describe('offers in the database', () => {
     });
   });
 });
+
+describe('placeholder emails', () => {
+  it('queues nothing for fighters whose address ends in .invalid', async () => {
+    await tx(async (c) => {
+      const { admin, bout } = await setup(c);
+      await asOwner(c);
+      await c.query(`update public.fighter_private set email = 'rs8-row9@no-email.invalid'
+                      where fighter_id = (select fighter_a_id from public.bouts where id = $1)`, [bout.id]);
+      await actAs(c, admin);
+      await c.query('select public.issue_offers($1)', [bout.id]);
+      await asOwner(c);
+      const { rows } = await c.query(`select to_email from public.email_logs where template = 'bout_offer' and entity_id in
+                                      (select id from public.bout_offers where bout_id = $1)`, [bout.id]);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].to_email).not.toMatch(/\.invalid$/);
+    });
+  });
+});

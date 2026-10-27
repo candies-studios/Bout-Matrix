@@ -37,7 +37,7 @@ describe('fighter registration schema', () => {
     [{ consent_data: false }, 'consent_data'],
     [{ gym_name: '' }, 'gym_name'],
     [{ website: 'http://spam' }, 'website'],
-    [{ division: 'other' }, 'division'],
+    [{ division: 'Men & Women!' }, 'division'],
     [{ existing_fighter_code: 'abc' }, 'existing_fighter_code'],
   ])('rejects %o', (over, field) => {
     const r = FighterRegistrationSchema.safeParse({ ...valid, ...over });

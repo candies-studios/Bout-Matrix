@@ -71,7 +71,8 @@ export const FighterRegistrationSchema = z
     phone,
     city: trimmed(2, 80, 'City'),
     country: trimmed(2, 80, 'Country'),
-    division: z.enum(DIVISIONS, { error: 'Choose a division.' }),
+    // Events may define their own divisions (e.g. k_one_u_eighteen_men); the server checks it against the event.
+    division: z.string({ error: 'Choose a division.' }).regex(/^[a-z_]{2,30}$/, 'Choose a division.'),
     competition_level: z.enum(COMPETITION_LEVELS, { error: 'Choose your competition level.' }),
     gym_id: z.uuid().optional().or(z.literal('').transform(() => undefined)),
     gym_name: optionalText(120),

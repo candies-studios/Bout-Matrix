@@ -4,6 +4,12 @@ import { RouterProvider } from 'react-router';
 import './index.css';
 import { AuthProvider } from '@/lib/auth';
 import { configError } from '@/lib/supabase';
+import { reloadForNewVersion } from '@/lib/staleBuild';
+
+// Vite reports files that vanished because a newer version was deployed; reload to get it.
+window.addEventListener('vite:preloadError', (e) => {
+  if (reloadForNewVersion()) e.preventDefault();
+});
 
 async function start() {
   const root = createRoot(document.getElementById('root')!);

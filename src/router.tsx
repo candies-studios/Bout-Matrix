@@ -6,11 +6,13 @@ import { RequireAdmin } from '@/routes/RequireAdmin';
 import { AdminLogin } from '@/pages/admin/AdminLogin';
 import { NotFound } from '@/pages/NotFound';
 import { Spinner } from '@/components/ui';
+import { importWithReload } from '@/lib/staleBuild';
 
 // Route-level code splitting: public visitors never download admin code.
 function page<K extends string>(loader: () => Promise<Record<K, FC>>, name: K) {
+  const load = importWithReload(loader);
   // eslint-disable-next-line react-refresh/only-export-components -- route table, not a hot-reloaded module
-  const C = lazy(async () => ({ default: (await loader())[name] as FC }));
+  const C = lazy(async () => ({ default: (await load())[name] as FC }));
   return (
     <Suspense fallback={<div className="flex justify-center py-16"><Spinner /></div>}>
       <C />

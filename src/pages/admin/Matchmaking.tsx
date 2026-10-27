@@ -170,6 +170,7 @@ export function Matchmaking() {
   const q = useMatchSuggestions(eventId);
   const [cls, setCls] = useState<string>('');
   const [wcFilter, setWcFilter] = useState('');
+  const [fighterFilter, setFighterFilter] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [detail, setDetail] = useState<MatchSuggestion | null>(null);
   const [creating, setCreating] = useState<MatchSuggestion | null>(null);
@@ -185,7 +186,19 @@ export function Matchmaking() {
     void q.reload();
   }
 
-  const rows = (q.data?.suggestions ?? []).filter((s) => (!cls || s.classification === cls) && (!wcFilter || s.evaluation.proposed_weight_class?.id === wcFilter));
+  // Suggestions matching the label + weight-class filters; the fighter list is built from these,
+  // so it only offers fighters who actually appear in that weight class.
+  const inClass = (q.data?.suggestions ?? []).filter((s) => (!cls || s.classification === cls) && (!wcFilter || s.evaluation.proposed_weight_class?.id === wcFilter));
+  const fighterOptions = (() => {
+    const m = new Map<string, { name: string; code: string }>();
+    for (const s of inClass) {
+      m.set(s.fighter_a_id, { name: s.fighter_a.fight_name, code: s.fighter_a.fighter_code });
+      m.set(s.fighter_b_id, { name: s.fighter_b.fight_name, code: s.fighter_b.fighter_code });
+    }
+    return [...m.entries()].sort((a, b) => a[1].name.localeCompare(b[1].name));
+  })();
+  const activeFighter = fighterOptions.some(([id]) => id === fighterFilter) ? fighterFilter : '';
+  const rows = inClass.filter((s) => !activeFighter || s.fighter_a_id === activeFighter || s.fighter_b_id === activeFighter);
   const st = q.data?.stats;
 
   return (
@@ -215,7 +228,7 @@ export function Matchmaking() {
                   </Card>
                 ))}
               </div>
-              <div className="grid items-center gap-3 sm:grid-cols-[16rem_16rem_1fr]">
+              <div className="grid items-center gap-3 sm:grid-cols-2 lg:grid-cols-[14rem_14rem_16rem_1fr]">
                 <Select aria-label="Classification" value={cls} onChange={(e) => setCls(e.target.value)}>
                   <option value="">All suggestions</option>
                   {(['strong_candidate', 'possible_candidate', 'requires_review'] as Classification[]).map((c) => <option key={c} value={c}>{CLASSIFICATION_LABELS[c]}</option>)}
@@ -223,6 +236,10 @@ export function Matchmaking() {
                 <Select aria-label="Weight class" value={wcFilter} onChange={(e) => setWcFilter(e.target.value)}>
                   <option value="">All weight classes</option>
                   {(roster.data?.classes ?? []).map((w) => <option key={w.id} value={w.id}>{w.name}{w.division ? ` (${humanize(w.division)})` : ''}</option>)}
+                </Select>
+                <Select aria-label="Fighter" value={activeFighter} onChange={(e) => setFighterFilter(e.target.value)}>
+                  <option value="">All fighters ({fighterOptions.length})</option>
+                  {fighterOptions.map(([id, f]) => <option key={id} value={id}>{f.name} · {f.code}</option>)}
                 </Select>
                 <span className="text-xs text-ink-400" aria-live="polite">
                   {rows.length} suggestion{rows.length === 1 ? '' : 's'} · updated {formatDateTime(q.data.refreshed_at)}

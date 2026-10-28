@@ -17,11 +17,11 @@ export function RegisterSuccess() {
   return (
     <div className="mx-auto max-w-xl text-center">
       <h1 className="text-4xl font-bold uppercase">
-        {s.status === 'already_registered' ? 'Already registered' : 'Registration received'}
+        {s.status === 'already_registered' ? 'Already registered' : s.kind === 'fighter' ? 'Thank you for registering!' : 'Registration received'}
       </h1>
       {s.kind === 'fighter' && s.fighter_code && (
         <Card className="mt-6">
-          <p className="text-sm uppercase tracking-wide text-ink-400">Your permanent fighter ID</p>
+          <p className="text-sm uppercase tracking-wide text-ink-400">Your registration ID</p>
           <p className="mt-2 font-display text-5xl font-bold tracking-wider text-ink-100">{s.fighter_code}</p>
           <div className="mt-4 flex justify-center">
             <CopyButton text={s.fighter_code} label="Copy ID" />
@@ -31,7 +31,7 @@ export function RegisterSuccess() {
               ? `You were already registered${s.event_name ? ` for ${s.event_name}` : ''} (status: ${s.registration_status?.replace('_', ' ')}).`
               : s.status === 'reused'
                 ? 'We matched your existing profile — no duplicate was created.'
-                : 'Keep this ID. Use it with the same email and date of birth to register for future events.'}
+                : 'Please save this ID (take a screenshot). It is your permanent fighter ID: use it to log in to any bout offer we send you — your password is your date of birth as DDMMYYYY — and to register for future events.'}
           </p>
         </Card>
       )}
@@ -39,7 +39,7 @@ export function RegisterSuccess() {
         {s.kind === 'coach'
           ? 'An administrator will verify your details. If approved you will receive an invitation to the coach portal.'
           : 'The organisers will review your registration.'}{' '}
-        A confirmation email is on its way{s.email ? ` to ${s.email}` : ''} — it can take a few minutes.
+        {s.kind === 'coach' ? 'A confirmation email is on its way — it can take a few minutes.' : ''}
       </p>
       <Link to="/events" className="mt-8 inline-block font-semibold text-accent-400 hover:underline">
         Browse events

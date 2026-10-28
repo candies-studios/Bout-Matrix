@@ -115,7 +115,7 @@ const cases: [string, RegExp, boolean?][] = [
   ['/register?event=demo', /Coach or gym/, false],
   ['/register/fighter?event=demo', /Submit registration/, false],
   ['/register/coach?event=demo', /Submit registration/, false],
-  ['/offers/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ', /Your opponent/, false],
+  ['/offers/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ', /Bout offer login/, false],
   ['/coach', /Coach sign in/, false],
   ['/admin/dashboard', /Pending registrations/],
   ['/admin/events', /Demo Night/],
@@ -174,6 +174,18 @@ describe('route smoke tests', () => {
     expect(screen.getByText('Lone Wolf')).toBeTruthy();
     expect(screen.getByText('K1 U12 men')).toBeTruthy();
     expect(screen.getByText(/No other ready fighter in this division/)).toBeTruthy();
+  });
+
+  it('offer page asks for fighter ID + date of birth before showing the offer', async () => {
+    await renderRoute('/offers/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ', false);
+    await waitFor(() => screen.getByText(/Bout offer login/));
+    expect(screen.queryByText(/Your opponent/)).toBeNull();
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.change(screen.getByLabelText(/^Login ID/), { target: { value: 'wds-f-0001' } });
+    fireEvent.change(screen.getByLabelText(/^Password/), { target: { value: '10/03/1987' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    await waitFor(() => screen.getByText(/Your opponent/));
+    expect(screen.getByText('Bravo')).toBeTruthy();
   });
 
   it('admin routes redirect anonymous visitors to sign-in', async () => {

@@ -57,16 +57,16 @@ describe('offers in the database', () => {
       const { links } = (await c.query('select public.issue_offers($1, 48) as r', [bout.id])).rows[0].r as Issued;
 
       await actAs(c, 'anon');
-      const view = (await c.query('select public.public_get_offer($1) as r', [links[0].token])).rows[0].r;
+      const view = (await c.query(`select public.public_get_offer($1, $2, '01011998') as r`, [links[0].token, links[0].fighter_code])).rows[0].r;
       expect(view.ok).toBe(true);
       expect(view.can_respond).toBe(true);
       expect(JSON.stringify(view)).not.toMatch(/@|legal_name|date_of_birth/);
 
-      const r1 = (await c.query(`select public.public_respond_offer($1, 'accept') as r`, [links[0].token])).rows[0].r;
+      const r1 = (await c.query(`select public.public_respond_offer($1, 'accept', null, $2, '01011998') as r`, [links[0].token, links[0].fighter_code])).rows[0].r;
       expect(r1).toMatchObject({ ok: true, response: 'accept', bout_status: 'accepted_one' });
-      const replay = (await c.query(`select public.public_respond_offer($1, 'decline') as r`, [links[0].token])).rows[0].r;
+      const replay = (await c.query(`select public.public_respond_offer($1, 'decline', null, $2, '01011998') as r`, [links[0].token, links[0].fighter_code])).rows[0].r;
       expect(replay).toMatchObject({ ok: false, code: 'already_responded' });
-      const r2 = (await c.query(`select public.public_respond_offer($1, 'accept') as r`, [links[1].token])).rows[0].r;
+      const r2 = (await c.query(`select public.public_respond_offer($1, 'accept', null, $2, '01011998') as r`, [links[1].token, links[1].fighter_code])).rows[0].r;
       expect(r2.bout_status).toBe('accepted_both');
 
       await actAs(c, admin);
@@ -82,9 +82,9 @@ describe('offers in the database', () => {
       await actAs(c, admin);
       const { links } = (await c.query('select public.issue_offers($1) as r', [bout.id])).rows[0].r as Issued;
       await actAs(c, 'anon');
-      const r = (await c.query(`select public.public_respond_offer($1, 'decline', '  Injured  ') as r`, [links[1].token])).rows[0].r;
+      const r = (await c.query(`select public.public_respond_offer($1, 'decline', '  Injured  ', $2, '01011998') as r`, [links[1].token, links[1].fighter_code])).rows[0].r;
       expect(r.bout_status).toBe('declined');
-      const other = (await c.query('select public.public_get_offer($1) as r', [links[0].token])).rows[0].r;
+      const other = (await c.query(`select public.public_get_offer($1, $2, '01011998') as r`, [links[0].token, links[0].fighter_code])).rows[0].r;
       expect(other.can_respond).toBe(false);
       await asOwner(c);
       expect((await c.query('select decline_reason from public.bout_responses where bout_id = $1', [bout.id])).rows[0].decline_reason).toBe('Injured');
@@ -108,7 +108,7 @@ describe('offers in the database', () => {
       await actAs(c, matchmaker);
       const { links } = (await c.query('select public.issue_offers($1) as r', [bout.id])).rows[0].r as Issued;
       await actAs(c, 'anon');
-      expect((await c.query(`select public.public_respond_offer($1, 'maybe') as r`, [links[0].token])).rows[0].r).toMatchObject({ ok: false, code: 'invalid' });
+      expect((await c.query(`select public.public_respond_offer($1, 'maybe', null, $2, '01011998') as r`, [links[0].token, links[0].fighter_code])).rows[0].r).toMatchObject({ ok: false, code: 'invalid' });
       await actAs(c, stranger);
       expect((await attempt(c, 'select public.get_offer_link($1)', [links[0].offer_id]))?.message).toMatch(/not found/i);
     });

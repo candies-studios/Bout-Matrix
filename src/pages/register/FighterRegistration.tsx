@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router';
 import {
   COMPETITION_LEVELS, DIVISIONS, FIGHTING_STYLES, FighterRegistrationSchema, fieldErrors,
 } from '@domain/schemas.ts';
-import { ApiError, callFunction, uploadRegistrationFile } from '@/lib/api';
+import { ApiError, uploadRegistrationFile } from '@/lib/api';
+import { supabase, friendlyError } from '@/lib/supabase';
 import { formatDateTime, humanize, venueText } from '@/lib/format';
 import { Alert, Button, Card, Field, Input, Select, Textarea } from '@/components/ui';
 import { Checkbox } from '@/components/more';
@@ -102,10 +103,11 @@ export function FighterRegistration() {
       for (const [kind, file] of Object.entries(docs)) {
         if (file) documents.push({ kind, ...(await uploadRegistrationFile(kind, file)) });
       }
-      const res = await callFunction<{ status: string; fighter_code: string; event_name: string | null; registration_status: string | null }>(
-        'register-fighter',
-        { ...values, photo_path: photoRef?.path, documents, captcha_token: captcha || undefined },
-      );
+      const { data, error } = await supabase.rpc('public_register_fighter', {
+        p: { ...values, photo_path: photoRef?.path, documents, captcha_token: captcha || undefined },
+      });
+      if (error) throw new Error(friendlyError(error));
+      const res = data as { status: string; fighter_code: string; event_name: string | null; registration_status: string | null };
       navigate('/register/success', { state: { kind: 'fighter', ...res, email: parsed.data.email } });
     } catch (err) {
       if (err instanceof ApiError && err.fields) setErrors(err.fields);

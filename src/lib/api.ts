@@ -41,15 +41,19 @@ export async function callFunction<T = unknown>(name: string, body: unknown): Pr
 }
 
 /** Upload a registration file through a one-time signed URL; returns the storage path. */
+const UPLOAD_EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
+
+/**
+ * Uploads a registration file straight into the private bucket under pending/<random id>/<kind>.<ext>.
+ * The storage policy only lets visitors create files with that shape (never read, list or overwrite them).
+ */
 export async function uploadRegistrationFile(kind: string, file: File): Promise<{ path: string; mime_type: string; size_bytes: number }> {
-  const meta = await callFunction<{ path: string; token: string }>('registration-upload-url', {
-    kind,
-    mime_type: file.type,
-    size_bytes: file.size,
-  });
-  const { error } = await supabase.storage.from('registration-private').uploadToSignedUrl(meta.path, meta.token, file, { contentType: file.type });
+  const ext = UPLOAD_EXT[file.type];
+  if (!ext || file.size > 10 * 1024 * 1024) throw new ApiError(400, 'invalid', 'Unsupported file. Use JPG, PNG, WEBP or PDF up to 10 MB.');
+  const path = `pending/${crypto.randomUUID()}/${kind}.${ext}`;
+  const { error } = await supabase.storage.from('registration-private').upload(path, file, { contentType: file.type, upsert: false });
   if (error) throw new ApiError(0, 'upload_failed', 'Upload failed. Please try again.');
-  return { path: meta.path, mime_type: file.type, size_bytes: file.size };
+  return { path, mime_type: file.type, size_bytes: file.size };
 }
 
 export function publicMediaUrl(path: string | null | undefined): string | null {

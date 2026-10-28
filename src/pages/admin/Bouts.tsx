@@ -79,9 +79,10 @@ export function Bouts() {
 
 const offerUrl = (token: string) => `${siteUrl}/offers/${token}`;
 
-function whatsappUrl(fighter: string, bout: BoutRow, url: string, expiresAt: string) {
+function whatsappUrl(fighter: string, fighterCode: string, bout: BoutRow, url: string, expiresAt: string) {
   const text = `Hi ${fighter}, you have a bout offer (${bout.bout_code}, ${bout.weight_classes?.name ?? 'Catchweight'}, ${bout.rounds} x ${bout.round_minutes} min). `
-    + `Open your personal link to see the details and accept or decline before ${formatDateTime(expiresAt)}: ${url}\n\nThis link is only for you, please don't share it.`;
+    + `Open your personal link and log in to see the details and accept or decline before ${formatDateTime(expiresAt)}:\n${url}\n\n`
+    + `Login ID: ${fighterCode}\nPassword: your date of birth as DDMMYYYY (e.g. 10 March 1987 = 10031987)\n\nThis link is only for you, please don't share it.`;
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
@@ -133,11 +134,12 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
   async function copyLink(url: string) {
     try {
       await navigator.clipboard.writeText(url);
-      setMsg({ tone: 'ok', text: 'Link copied. Paste it into a message to the fighter.' });
+      setMsg({ tone: 'ok', text: 'Link copied. Send it to the fighter with their login: fighter ID + date of birth as DDMMYYYY.' });
     } catch {
       window.prompt('Copy this link:', url);
     }
   }
+  const code = (id: string) => (id === bout.fighter_a_id ? bout.fighter_a?.fighter_code : bout.fighter_b?.fighter_code);
   const name = (id: string) => (id === bout.fighter_a_id ? bout.fighter_a?.fight_name : bout.fighter_b?.fight_name);
 
   async function doTransition() {
@@ -283,7 +285,7 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
                             <Button variant="secondary" onClick={() => void copyLink(extra.data!.links[o.id])}>Copy link</Button>
                             <a
                               className="inline-flex items-center rounded-md border border-ink-600 px-3 py-2 font-semibold hover:border-ink-400"
-                              href={whatsappUrl(name(o.fighter_id) ?? 'there', bout, extra.data.links[o.id], o.expires_at)}
+                              href={whatsappUrl(name(o.fighter_id) ?? 'there', code(o.fighter_id) ?? '', bout, extra.data.links[o.id], o.expires_at)}
                               target="_blank"
                               rel="noopener noreferrer"
                             >

@@ -72,7 +72,7 @@ export function FightCardPage() {
   const classes = useMemo(() => [...new Set((card.data ?? []).map((b) => b.weight_class).filter(Boolean))] as string[], [card.data]);
   const bouts = (card.data ?? []).filter((b) => !filter || b.weight_class === filter);
   const groups = bouts.reduce<Record<string, CardBout[]>>((acc, b) => {
-    (acc[b.card_segment ?? 'main_card'] ??= []).push(b);
+    (acc[b.card_segment ?? 'prelims'] ??= []).push(b);
     return acc;
   }, {});
 

@@ -11,6 +11,7 @@ import { EventPicker } from '@/components/EventPicker';
 import { useSelectedEvent } from '@/hooks/useSelectedEvent';
 import { Loading } from '@/components/Loading';
 import { BoutStatusBadge } from '@/components/StatusBadge';
+import { ExportBouts } from '@/components/ExportBouts';
 import { CompareModal, CreateBoutModal, EvaluationDetails, SuggestionRow } from './Matchmaking';
 import { useMatchSuggestions, type MatchSuggestion } from '@/hooks/useMatchSuggestions';
 import { useEventRoster } from '@/hooks/useEventRoster';
@@ -25,6 +26,7 @@ const GROUPS: { label: string; statuses: BoutStatus[] }[] = [
 ];
 
 export function Bouts() {
+  const { access } = useAuth();
   const { eventId, setEventId, events } = useSelectedEvent();
   const [params, setParams] = useSearchParams();
   const openId = params.get('bout');
@@ -39,7 +41,15 @@ export function Bouts() {
 
   return (
     <div>
-      <PageHeader title="Bouts" actions={<EventPicker eventId={eventId} setEventId={setEventId} events={events} />} />
+      <PageHeader
+        title="Bouts"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {eventId && canManageEvent(access, eventId) && <ExportBouts eventId={eventId} eventName={events.find((e) => e.id === eventId)?.name ?? 'Event'} />}
+            <EventPicker eventId={eventId} setEventId={setEventId} events={events} />
+          </div>
+        }
+      />
       <Loading loading={q.loading} error={q.error}>
         {!q.data?.length ? (
           <EmptyState title="No bouts yet">Create bouts from the Matchmaking page.</EmptyState>

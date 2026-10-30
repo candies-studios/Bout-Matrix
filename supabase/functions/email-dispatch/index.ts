@@ -2,7 +2,6 @@
 // nudged by other functions. Auth: header x-dispatch-secret = DISPATCH_SECRET.
 // An email is marked "sent" only when Resend accepts it and returns a message id.
 import { OFFER_LINK_TEMPLATES, renderEmail } from '../_shared/domain/emailTemplates.ts';
-import { deriveOfferToken } from '../_shared/domain/tokens.ts';
 import { adminClient, env, HttpError, json, serve, timingSafeEqual } from '../_shared/http.ts';
 
 interface EmailRow {
@@ -37,10 +36,11 @@ serve(async (req) => {
         let actionUrl: string | undefined;
         if (OFFER_LINK_TEMPLATES.has(row.template)) {
           const { data: m } = await db.rpc('svc_offer_token_material', { p_offer: row.payload.offer_id });
-          const mat = m as { offer_id: string; nonce: string; status: string; token?: string } | null;
+          const mat = m as { status: string; fighter_code?: string } | null;
           if (!mat || mat.status !== 'pending') throw Object.assign(new Error('Offer is no longer open; email not sent'), { permanent: true });
-          // Token is derived in the database (migration 0010); the env secret is only a fallback for older databases.
-          actionUrl = `${siteUrl}/offers/${mat.token ?? (await deriveOfferToken(env('OFFER_TOKEN_SECRET'), mat.offer_id, mat.nonce))}`;
+          // Offers are answered in the fighter area (fighter ID + date of birth); no personal token in emails.
+          actionUrl = `${siteUrl}/fighter`;
+          row.payload.fighter_code ??= mat.fighter_code;
         }
         const msg = renderEmail(row.template, row.payload, { siteUrl, orgName, actionUrl });
         const res = await fetch('https://api.resend.com/emails', {

@@ -32,6 +32,15 @@ const RPC: Record<string, unknown> = {
     }],
   },
   public_get_offer: { ok: true, status: 'pending', can_respond: true, expires_at: '2026-12-01T00:00:00Z', responded_at: null, fighter: { fight_name: 'Alpha', fighter_code: 'WDS-F-0001' }, terms: { bout_code: 'B1', event_name: 'Demo Night', starts_at: null, timezone: 'UTC', venue_name: null, venue_city: null, weight_class: 'Lightweight', weight_limit_g: 70307, contracted_weight_g: null, rounds: 3, round_minutes: 5, rules_text: null, opponent: { fight_name: 'Bravo', nickname: null, country: null, gym: null, primary_style: null, height_cm: null, reach_cm: null, declared_weight_g: 70000, record: null } } },
+  public_fighter_login: { ok: true, session: 'S'.repeat(43), fighter: { fight_name: 'Alpha', fighter_code: 'WDS-F-0001' } },
+  public_fighter_respond: { ok: true, response: 'accept', bout_status: 'accepted_one' },
+  public_fighter_portal: {
+    ok: true, fighter: { fight_name: 'Alpha', fighter_code: 'WDS-F-0001', gym: 'Iron Tide' },
+    offers: [{ offer_id: 'o1', status: 'pending', can_respond: true, expires_at: '2026-12-01T00:00:00Z', responded_at: null,
+      terms: { bout_code: 'B1', event_name: 'Demo Night', starts_at: null, timezone: 'UTC', venue_name: null, venue_city: null, weight_class: 'Lightweight', weight_limit_g: 70307, contracted_weight_g: null, rounds: 3, round_minutes: 5, rules_text: null,
+        opponent: { fight_name: 'Bravo', nickname: null, country: 'India', gym: null, primary_style: null, height_cm: null, reach_cm: null, declared_weight_g: 70000, record: null } } }],
+    bouts: [], registrations: [{ event_name: 'Demo Night', event_slug: 'demo', starts_at: null, timezone: 'UTC', status: 'approved', division: 'men', weight_g: 70000, missing_info: [] }],
+  },
   public_list_events: [EVENT],
   public_get_event: [EVENT],
   public_registration_event: [EVENT],
@@ -117,6 +126,7 @@ const cases: [string, RegExp, boolean?][] = [
   ['/register/coach?event=demo', /Submit registration/, false],
   ['/offers/abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ', /Bout offer login/, false],
   ['/coach', /Coach sign in/, false],
+  ['/fighter', /Fighter login/, false],
   ['/admin/dashboard', /Pending registrations/],
   ['/admin/events', /Demo Night/],
   ['/admin/events/e1', /Save event/],
@@ -186,6 +196,21 @@ describe('route smoke tests', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
     await waitFor(() => screen.getByText(/Your opponent/));
     expect(screen.getByText('Bravo')).toBeTruthy();
+  });
+
+  it('fighter login shows the fighter area with offers to accept, and a header link', async () => {
+    await renderRoute('/fighter', false);
+    await waitFor(() => screen.getByRole('button', { name: 'Log in' }));
+    expect(screen.getByRole('link', { name: 'Fighter login' })).toBeTruthy();
+    const { fireEvent } = await import('@testing-library/react');
+    fireEvent.change(screen.getByLabelText(/^Login ID/), { target: { value: 'wds-f-0001' } });
+    fireEvent.change(screen.getByLabelText(/^Password/), { target: { value: '10031987' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    await waitFor(() => screen.getByText(/vs Bravo/));
+    expect(screen.getByText(/1 waiting for you/)).toBeTruthy();
+    expect(screen.getByText('My registrations')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Accept bout' }));
+    expect(screen.getByRole('button', { name: 'Yes, I accept' })).toBeTruthy();
   });
 
   it('admin routes redirect anonymous visitors to sign-in', async () => {

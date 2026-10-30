@@ -87,13 +87,15 @@ export function Bouts() {
   );
 }
 
-const offerUrl = (token: string) => `${siteUrl}/offers/${token}`;
+const portalUrl = () => `${siteUrl}/fighter`;
 
-function whatsappUrl(fighter: string, fighterCode: string, bout: BoutRow, url: string, expiresAt: string) {
-  const text = `Hi ${fighter}, you have a bout offer (${bout.bout_code}, ${bout.weight_classes?.name ?? 'Catchweight'}, ${bout.rounds} x ${bout.round_minutes} min). `
-    + `Open your personal link and log in to see the details and accept or decline before ${formatDateTime(expiresAt)}:\n${url}\n\n`
-    + `Login ID: ${fighterCode}\nPassword: your date of birth as DDMMYYYY (e.g. 10 March 1987 = 10031987)\n\nThis link is only for you, please don't share it.`;
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+function offerMessage(fighter: string, fighterCode: string, bout: BoutRow, expiresAt: string) {
+  return `Hi ${fighter}, you have a bout offer (${bout.bout_code}, ${bout.weight_classes?.name ?? 'Catchweight'}, ${bout.rounds} x ${bout.round_minutes} min). `
+    + `Log in to the fighter area to see the details and accept or decline before ${formatDateTime(expiresAt)}:\n${portalUrl()}\n\n`
+    + `Login ID: ${fighterCode}\nPassword: your date of birth as DDMMYYYY (e.g. 10 March 1987 = 10031987)`;
+}
+function whatsappUrl(fighter: string, fighterCode: string, bout: BoutRow, expiresAt: string) {
+  return `https://wa.me/?text=${encodeURIComponent(offerMessage(fighter, fighterCode, bout, expiresAt))}`;
 }
 
 interface Offer { id: string; fighter_id: string; corner: string; offer_version: number; status: string; expires_at: string; sent_at: string | null; first_viewed_at: string | null; responded_at: string | null; revoked_reason: string | null; reminder_sent_at: string | null }
@@ -120,18 +122,7 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
     const offers = must(await supabase.from('bout_offers').select('id, fighter_id, corner, offer_version, status, expires_at, sent_at, first_viewed_at, responded_at, revoked_reason, reminder_sent_at').eq('bout_id', bout.id).order('offer_version', { ascending: false }).order('corner')) as Offer[];
     const responses = must(await supabase.from('bout_responses').select('id, offer_id, response, decline_reason, responded_at').eq('bout_id', bout.id)) as { id: string; offer_id: string; response: string; decline_reason: string | null; responded_at: string }[];
     const history = must(await supabase.from('bout_status_history').select('id, from_status, to_status, actor_kind, reason, created_at').eq('bout_id', bout.id).order('id', { ascending: false })) as { id: number; from_status: BoutStatus | null; to_status: BoutStatus; actor_kind: string; reason: string | null; created_at: string }[];
-    // Personal links for open offers, so the admin can copy them or share them on WhatsApp.
-    const links: Record<string, string> = {};
-    await Promise.all(
-      offers
-        .filter((o) => o.offer_version === bout.offer_version && o.status === 'pending' && new Date(o.expires_at) > new Date())
-        .map(async (o) => {
-          const { data } = await supabase.rpc('get_offer_link', { p_offer: o.id });
-          const token = (data as { token?: string } | null)?.token;
-          if (token) links[o.id] = offerUrl(token);
-        }),
-    );
-    return { offers, responses, history, links };
+    return { offers, responses, history };
   }, [bout.id, bout.updated_at]);
 
   const done = (text: string, error?: unknown) => {
@@ -144,7 +135,7 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
   async function copyLink(url: string) {
     try {
       await navigator.clipboard.writeText(url);
-      setMsg({ tone: 'ok', text: 'Link copied. Send it to the fighter with their login: fighter ID + date of birth as DDMMYYYY.' });
+      setMsg({ tone: 'ok', text: 'Message copied (fighter login link + login details). Paste it into WhatsApp, SMS or email.' });
     } catch {
       window.prompt('Copy this link:', url);
     }
@@ -167,7 +158,7 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
     setBusy(true);
     const { error } = await supabase.rpc('issue_offers', { p_bout: bout.id, p_hours: hours ? Number(hours) : null });
     setBusy(false);
-    done('Offers created. Send each fighter their personal link below (Copy link or WhatsApp). Emails go out automatically once email sending is set up.', error);
+    done('Offers created. Fighters see them in the fighter area; an email with the login link is sent automatically (if email sending is set up). Use WhatsApp or Copy message below to tell them too.', error);
   }
   async function saveTerms(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -290,12 +281,12 @@ function BoutDetail({ bout, onClose, onChanged }: { bout: BoutRow; onClose: () =
                     </span>
                     {o.status === 'pending' && (
                       <span className="flex flex-wrap gap-2">
-                        {extra.data?.links[o.id] && (
+                        {(
                           <>
-                            <Button variant="secondary" onClick={() => void copyLink(extra.data!.links[o.id])}>Copy link</Button>
+                            <Button variant="secondary" onClick={() => void copyLink(offerMessage(name(o.fighter_id) ?? 'there', code(o.fighter_id) ?? '', bout, o.expires_at))}>Copy message</Button>
                             <a
                               className="inline-flex items-center rounded-md border border-ink-600 px-3 py-2 font-semibold hover:border-ink-400"
-                              href={whatsappUrl(name(o.fighter_id) ?? 'there', code(o.fighter_id) ?? '', bout, extra.data.links[o.id], o.expires_at)}
+                              href={whatsappUrl(name(o.fighter_id) ?? 'there', code(o.fighter_id) ?? '', bout, o.expires_at)}
                               target="_blank"
                               rel="noopener noreferrer"
                             >

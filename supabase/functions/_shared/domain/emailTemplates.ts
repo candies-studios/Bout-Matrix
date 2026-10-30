@@ -62,6 +62,9 @@ function build(template: string, p: P, ctx: RenderContext): Block {
   const site = ctx.siteUrl.replace(/\/$/, '');
   const adminBout = p.bout_id ? `${site}/admin/bouts?bout=${encodeURIComponent(String(p.bout_id))}` : `${site}/admin/bouts`;
   const eventLink = p.event_slug ? `${site}/events/${encodeURIComponent(String(p.event_slug))}` : undefined;
+  const portal = `${site}/fighter`;
+  const loginHelp = (code: unknown) =>
+    `<strong>How to log in:</strong> Login ID = your fighter ID${code ? ` (<strong>${s(code)}</strong>)` : ''} · Password = your date of birth as DDMMYYYY (e.g. 10 March 1987 = 10031987).`;
   const base = template.replace(/_coach$/, '');
   const coach = template.endsWith('_coach');
   const who = coach ? `your fighter ${s(p.fighter_name)}` : 'you';
@@ -76,8 +79,10 @@ function build(template: string, p: P, ctx: RenderContext): Block {
           `Hi ${s(p.fighter_name)},`,
           p.event_name ? `We received your registration for <strong>${s(p.event_name)}</strong>. It will be reviewed by the organisers.` : 'Your fighter profile has been created.',
           `Your permanent fighter ID is <span style="font-size:22px;font-weight:700;letter-spacing:1px">${s(p.fighter_code)}</span>`,
-          'Keep this ID. Use it with the same email and date of birth to register for future events without creating a new profile.',
+          'Keep this ID. You need it to log in to the fighter area, where bout offers appear, and to register for future events.',
+          loginHelp(p.fighter_code),
         ],
+        action: { label: 'Fighter login', url: portal },
       };
     case 'coach_fighter_submitted':
       return { subject: `Fighter registered: ${p.fighter_name}`, heading: 'Fighter registered', lines: [`${s(p.fighter_name)} (${s(p.fighter_code)}) was registered${p.event_name ? ` for ${s(p.event_name)}` : ''}.`] };
@@ -107,11 +112,12 @@ function build(template: string, p: P, ctx: RenderContext): Block {
       return {
         subject: `Bout offer: ${p.event_name}`,
         heading: 'You have a bout offer',
-        lines: [`Hi ${s(p.fighter_name)},`, 'You have been offered the following bout:', ...boutLines(p), `<strong>Respond by:</strong> ${s(formatDate(p.expires_at, p.timezone))}`, 'This link is personal to you. Do not forward it.'],
-        action: ctx.actionUrl ? { label: 'Review and respond', url: ctx.actionUrl } : undefined,
+        lines: [`Hi ${s(p.fighter_name)},`, 'You have been offered the following bout:', ...boutLines(p), `<strong>Respond by:</strong> ${s(formatDate(p.expires_at, p.timezone))}`,
+          'Log in to the fighter area to see the full details and accept or decline.', loginHelp(p.fighter_code)],
+        action: { label: 'Log in and respond', url: ctx.actionUrl ?? portal },
       };
     case 'offer_expiry_reminder':
-      return { subject: `Reminder: your bout offer expires soon`, heading: 'Your offer expires soon', lines: [`Hi ${s(p.fighter_name)}, your offer for <strong>${s(p.event_name)}</strong> expires ${s(formatDate(p.expires_at))}.`], action: ctx.actionUrl ? { label: 'Review and respond', url: ctx.actionUrl } : undefined };
+      return { subject: `Reminder: your bout offer expires soon`, heading: 'Your offer expires soon', lines: [`Hi ${s(p.fighter_name)}, your offer for <strong>${s(p.event_name)}</strong> expires ${s(formatDate(p.expires_at))}.`, loginHelp(p.fighter_code)], action: { label: 'Log in and respond', url: ctx.actionUrl ?? portal } };
     case 'offer_accepted_confirmation':
       return { subject: `You accepted: ${p.event_name}`, heading: 'Acceptance received', lines: [`Hi ${s(p.fighter_name)}, we recorded your acceptance of bout ${s(p.bout_code)}.`, 'The bout is not final until the organisers confirm it. We will email you.'] };
     case 'offer_declined_confirmation':
@@ -170,7 +176,7 @@ export const KNOWN_TEMPLATES = [
   'event_updated', 'event_updated_coach', 'event_announcement',
 ] as const;
 
-/** Templates whose action link is a personal offer link (needs the token). */
+/** Offer templates: only sent while the offer is still open; the action link is the fighter login page. */
 export const OFFER_LINK_TEMPLATES = new Set(['bout_offer', 'offer_expiry_reminder']);
 
 export function renderEmail(template: string, payload: P, ctx: RenderContext): RenderedEmail {

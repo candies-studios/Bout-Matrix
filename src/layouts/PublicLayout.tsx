@@ -13,6 +13,7 @@ export function PublicLayout() {
             {[
               ['/events', 'Events'],
               ['/register', 'Register'],
+              ['/fighter', 'Fighter login'],
             ].map(([to, label]) => (
               <NavLink
                 key={to}

@@ -33,6 +33,7 @@ export const routes = [
       { path: '/events', element: page(() => import('@/pages/public/EventsList'), 'EventsList') },
       { path: '/events/:eventSlug', element: page(() => import('@/pages/public/EventPage'), 'EventPage') },
       { path: '/events/:eventSlug/fight-card', element: page(() => import('@/pages/public/FightCardPage'), 'FightCardPage') },
+      { path: '/fighter', element: page(() => import('@/pages/public/FighterPortal'), 'FighterPortal') },
       { path: '/coach', element: page(() => import('@/pages/coach/CoachPortal'), 'CoachPortal') },
     ],
   },

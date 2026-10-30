@@ -41,9 +41,16 @@ export function RegisterSuccess() {
           : 'The organisers will review your registration.'}{' '}
         {s.kind === 'coach' ? 'A confirmation email is on its way — it can take a few minutes.' : ''}
       </p>
-      <Link to="/events" className="mt-8 inline-block font-semibold text-accent-400 hover:underline">
-        Browse events
-      </Link>
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
+        {s.kind === 'fighter' && (
+          <Link to="/fighter" className="inline-flex min-h-11 items-center rounded-md bg-accent-600 px-5 font-semibold text-white hover:bg-accent-500">
+            Fighter login
+          </Link>
+        )}
+        <Link to="/events" className="font-semibold text-accent-400 hover:underline">
+          Browse events
+        </Link>
+      </div>
     </div>
   );
 }
